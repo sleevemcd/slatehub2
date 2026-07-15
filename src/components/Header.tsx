@@ -37,6 +37,8 @@ export function Header() {
           <button className={`nav-btn ${state.view.startsWith('teleprompter') ? 'active' : ''}`}
             onClick={() => goToView('teleprompter-setup')}>Prompt</button>
         )}
+        <button className={`nav-btn ${state.view === 'script-review' ? 'active' : ''}`}
+          onClick={() => goToView('script-review')}>Script</button>
         <button className={`nav-btn ${state.view === 'dashboard' ? 'active' : ''}`}
           onClick={() => goToView('dashboard')}>Dashboard</button>
       </nav>

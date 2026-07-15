@@ -18,6 +18,7 @@ type Action =
   | { type: 'SET_SORT'; key: SortKey }
   | { type: 'TOGGLE_SORT_ASC' }
   | { type: 'TOGGLE_SHOT_DONE'; row: number }
+  | { type: 'ADD_SHOT'; shot: ShotRecord }
   | { type: 'ADD_TAKE'; take: Take }
   | { type: 'MARK_TAKE_GOOD'; takeId: string; good: boolean }
   | { type: 'MARK_TAKE_CIRCLED'; takeId: string; circled: boolean }
@@ -166,6 +167,8 @@ function reducer(state: AppState, action: Action): AppState {
           s.row === action.row ? { ...s, done: !s.done } : s
         ),
       }
+    case 'ADD_SHOT':
+      return { ...state, shots: [...state.shots, action.shot] }
     case 'ADD_TAKE':
       return { ...state, takes: [...state.takes, action.take] }
     case 'MARK_TAKE_GOOD':

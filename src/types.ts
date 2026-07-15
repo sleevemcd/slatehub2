@@ -50,7 +50,7 @@ export interface Take {
 }
 
 export type SortKey = 'shootOrder' | 'type' | 'location' | 'description' | 'shootDay'
-export type ViewState = 'setup' | 'shots' | 'slate' | 'dashboard' | 'crew' | 'teleprompter-setup' | 'teleprompter-view' | 'teleprompter-remote' | 'project-manager'
+export type ViewState = 'setup' | 'shots' | 'slate' | 'dashboard' | 'crew' | 'teleprompter-setup' | 'teleprompter-view' | 'teleprompter-remote' | 'project-manager' | 'script-review'
 
 export interface TeleprompterConfig {
   docUrl: string

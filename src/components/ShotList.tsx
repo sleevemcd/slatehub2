@@ -56,8 +56,6 @@ export function ShotList() {
     return { filtered: result, groups }
   }, [state.shots, state.filters, state.sortKey, state.sortAsc, state.groupBy])
 
-  const allRoles = [...new Set(state.shots.flatMap(s => s.crew || []).filter(Boolean))].sort()
-
   const getTakeCount = (row: number) =>
     state.takes.filter(t => t.shotRow === row).length
 
