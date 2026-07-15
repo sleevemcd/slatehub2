@@ -1,0 +1,8 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512">
+  <rect width="512" height="512" rx="64" fill="#1a1a2e"/>
+  <rect x="64" y="116" width="384" height="280" rx="16" fill="#2e2e4a"/>
+  <rect x="64" y="116" width="384" height="60" rx="16" fill="#f5c542"/>
+  <rect x="64" y="116" width="384" height="10" fill="#1a1a2e"/>
+  <polygon points="200,280 300,248 300,312" fill="#f5c542"/>
+  <text x="256" y="460" text-anchor="middle" font-family="system-ui" font-size="52" font-weight="700" fill="#f5c542">SLATEHUB</text>
+</svg>
