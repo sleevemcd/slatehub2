@@ -135,7 +135,7 @@ export function ScriptReview() {
         </div>
       )}
 
-      <div className="script-content" onMouseUp={handleSelection}>
+      <div className="script-content" onMouseUp={handleSelection} onTouchEnd={handleSelection}>
         {!rawHtml && !loading && (
           <div className="empty-state">
             <p>Enter a published Google Doc URL and click Load Script.</p>
@@ -143,13 +143,21 @@ export function ScriptReview() {
           </div>
         )}
         {loading && <div className="loading">Loading script...</div>}
-        {paragraphs.map((p, i) => (
-          <div key={i} className="script-paragraph" data-paragraph={i + 1}>
-            <span className="script-paragraph-num">{i + 1}</span>
-            <button className="script-add-shot" title="Add to shot list" onClick={() => addShot(p.replace(/<[^>]*>/g, ''))}>+</button>
-            <div className="script-para-content" dangerouslySetInnerHTML={{ __html: p }} />
-          </div>
-        ))}
+        {paragraphs.map((p, i) => {
+          const plain = p.replace(/<[^>]*>/g, '')
+          return (
+            <div key={i} className="script-paragraph" data-paragraph={i + 1}
+              onClick={() => {
+                const sel = window.getSelection()
+                if (sel && sel.toString().trim().length > 0) return
+                addShot(plain)
+              }}>
+              <span className="script-paragraph-num">{i + 1}</span>
+              <span className="script-add-shot" title="Add to shot list">+</span>
+              <div className="script-para-content" dangerouslySetInnerHTML={{ __html: p }} />
+            </div>
+          )
+        })}
       </div>
     </div>
   )

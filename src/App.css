@@ -3567,18 +3567,39 @@
   }
 
   .script-paragraph {
-    padding-left: 0;
+    padding: 10px 12px 10px 36px;
     font-size: 15px;
     line-height: 1.6;
+    cursor: pointer;
+    border-radius: 6px;
+    margin-bottom: 4px;
+    border: 1px solid transparent;
+  }
+  .script-paragraph:hover {
+    border-left-color: transparent;
+    background: var(--bg-hover);
+  }
+  .script-paragraph:active {
+    background: var(--accent-dim);
+    transform: scale(0.99);
   }
 
   .script-add-shot {
-    left: auto;
-    right: 8px;
-    top: 4px;
-    width: 26px;
-    height: 26px;
-    font-size: 16px;
+    left: 6px;
+    right: auto;
+    top: 10px;
+    width: 22px;
+    height: 22px;
+    font-size: 14px;
+    box-shadow: none;
+    pointer-events: none;
+  }
+
+  .script-paragraph-num {
+    left: 6px;
+    top: 10px;
+    font-size: 10px;
+    display: none;
   }
 
   .tp-controls {
