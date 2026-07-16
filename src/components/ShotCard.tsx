@@ -1,3 +1,4 @@
+import { useState } from 'react'
 import type { ShotRecord, Layout } from '../types'
 import { PRIORITIES, getPriorityStyle } from '../types'
 import { getShotTypeInfo, getMediaTypeIcon } from '../utils/reference'
@@ -9,6 +10,7 @@ interface ShotCardProps {
   onSelect: (shot: ShotRecord) => void
   onToggleDone: () => void
   onSetPriority?: (row: number, priority: string) => void
+  onEditShot?: (row: number, data: Partial<ShotRecord>) => void
   layout: Layout
   selected?: boolean
   onToggleSelect?: (row: number) => void
@@ -16,6 +18,7 @@ interface ShotCardProps {
   onDragStart?: (e: React.DragEvent, row: number) => void
   onDragOver?: (e: React.DragEvent, row: number) => void
   onDrop?: (e: React.DragEvent, row: number) => void
+  onDelete?: (row: number) => void
 }
 
 function CrewBadges({ crew }: { crew: string[] }) {
@@ -27,7 +30,10 @@ function CrewBadges({ crew }: { crew: string[] }) {
   )
 }
 
-export function ShotCard({ shot, takeCount, showRef, onSelect, onToggleDone, onSetPriority, layout, selected, onToggleSelect, selectMode, onDragStart, onDragOver, onDrop }: ShotCardProps) {
+export function ShotCard({ shot, takeCount, showRef, onSelect, onToggleDone, onSetPriority, onEditShot, layout, selected, onToggleSelect, selectMode, onDragStart, onDragOver, onDrop, onDelete }: ShotCardProps) {
+  const [editing, setEditing] = useState(false)
+  const [editForm, setEditForm] = useState<Partial<ShotRecord>>({})
+
   const info = getShotTypeInfo(shot.type)
   const mediaIcon = getMediaTypeIcon(shot.type)
   const pri = getPriorityStyle(shot.priority)
@@ -45,17 +51,41 @@ export function ShotCard({ shot, takeCount, showRef, onSelect, onToggleDone, onS
     </span>
   ) : null
 
-  const prioritySelect = (
-    <select className="filter-select shot-priority-select"
-      value={shot.priority}
-      onChange={e => onSetPriority?.(shot.row, e.target.value)}
-      onClick={e => e.stopPropagation()}>
-      <option value="">Priority</option>
-      {PRIORITIES.map(p => (
-        <option key={p.value} value={p.value}>{p.label}</option>
-      ))}
-    </select>
-  )
+  const startEditing = (e: React.MouseEvent) => {
+    e.stopPropagation()
+    setEditForm({
+      type: shot.type,
+      description: shot.description,
+      location: shot.location,
+      setup: shot.setup,
+      shootDay: shot.shootDay,
+      shootOrder: shot.shootOrder,
+      notes: shot.notes,
+      subShot: shot.subShot,
+    })
+    setEditing(true)
+  }
+
+  const saveEdit = (e: React.MouseEvent) => {
+    e.stopPropagation()
+    if (onEditShot) {
+      const cleaned: Partial<ShotRecord> = {}
+      for (const [k, v] of Object.entries(editForm)) {
+        if (v !== (shot as any)[k]) {
+          (cleaned as any)[k] = v
+        }
+      }
+      if (Object.keys(cleaned).length > 0) {
+        onEditShot(shot.row, cleaned)
+      }
+    }
+    setEditing(false)
+  }
+
+  const cancelEdit = (e: React.MouseEvent) => {
+    e.stopPropagation()
+    setEditing(false)
+  }
 
   const handleClick = () => {
     if (selectMode) {
@@ -70,9 +100,61 @@ export function ShotCard({ shot, takeCount, showRef, onSelect, onToggleDone, onS
     shot.done ? 'done' : '',
     selected ? 'selected' : '',
     selectMode ? 'select-mode' : '',
+    editing ? 'editing' : '',
   ].filter(Boolean).join(' ')
 
-  const cardContent = (
+  const cardContent = editing ? (
+    <div className="shot-edit-form" onClick={e => e.stopPropagation()}>
+      <div className="shot-edit-field">
+        <label>Type</label>
+        <input className="input" value={editForm.type || ''}
+          onChange={e => setEditForm(f => ({ ...f, type: e.target.value }))} />
+      </div>
+      <div className="shot-edit-field">
+        <label>Description</label>
+        <textarea className="input shot-edit-textarea" value={editForm.description || ''}
+          onChange={e => setEditForm(f => ({ ...f, description: e.target.value }))} />
+      </div>
+      <div className="shot-edit-row">
+        <div className="shot-edit-field">
+          <label>Location</label>
+          <input className="input" value={editForm.location || ''}
+            onChange={e => setEditForm(f => ({ ...f, location: e.target.value }))} />
+        </div>
+        <div className="shot-edit-field">
+          <label>Setup</label>
+          <input className="input" value={editForm.setup || ''}
+            onChange={e => setEditForm(f => ({ ...f, setup: e.target.value }))} />
+        </div>
+      </div>
+      <div className="shot-edit-row">
+        <div className="shot-edit-field">
+          <label>Shoot Day</label>
+          <input className="input" value={editForm.shootDay || ''}
+            onChange={e => setEditForm(f => ({ ...f, shootDay: e.target.value }))} />
+        </div>
+        <div className="shot-edit-field">
+          <label>Order</label>
+          <input className="input" value={editForm.shootOrder || ''}
+            onChange={e => setEditForm(f => ({ ...f, shootOrder: e.target.value }))} />
+        </div>
+        <div className="shot-edit-field">
+          <label>Sub-Shot</label>
+          <input className="input" value={editForm.subShot || ''}
+            onChange={e => setEditForm(f => ({ ...f, subShot: e.target.value }))} />
+        </div>
+      </div>
+      <div className="shot-edit-field">
+        <label>Notes</label>
+        <textarea className="input shot-edit-textarea" value={editForm.notes || ''}
+          onChange={e => setEditForm(f => ({ ...f, notes: e.target.value }))} />
+      </div>
+      <div className="shot-edit-actions">
+        <button className="btn btn-sm" onClick={saveEdit}>Save</button>
+        <button className="btn btn-sm btn-ghost" onClick={cancelEdit}>Cancel</button>
+      </div>
+    </div>
+  ) : (
     <>
       {selectMode && (
         <div className="shot-select-box" onClick={e => { e.stopPropagation(); onToggleSelect?.(shot.row) }}>
@@ -89,6 +171,7 @@ export function ShotCard({ shot, takeCount, showRef, onSelect, onToggleDone, onS
         title="Drag to reorder">
         ⋮⋮
       </div>
+      <div className="shot-edit-btn" onClick={startEditing} title="Edit fields">✎</div>
       {layout === 'list' ? (
         <>
           <div className="shot-order">{shot.shootOrder || '—'}</div>

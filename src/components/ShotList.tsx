@@ -5,7 +5,7 @@ import { ShotCard } from './ShotCard'
 import type { ShotRecord } from '../types'
 
 export function ShotList() {
-  const { state, dispatch, openSlate, toggleDone, setShotPriority, deleteShot, deleteShots, reorderShots } = useApp()
+  const { state, dispatch, openSlate, toggleDone, setShotPriority, deleteShot, deleteShots, updateShot, reorderShots } = useApp()
   const [selectMode, setSelectMode] = useState(false)
   const [selected, setSelected] = useState<Set<number>>(new Set())
   const [dragRow, setDragRow] = useState<number | null>(null)
@@ -129,6 +129,7 @@ export function ShotList() {
       onSelect={openSlate}
       onToggleDone={() => toggleDone(shot.row)}
       onSetPriority={setShotPriority}
+      onEditShot={updateShot}
       layout={state.layout}
       selected={selected.has(shot.row)}
       onToggleSelect={toggleSelect}

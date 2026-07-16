@@ -408,6 +408,85 @@
   opacity: 0.8;
 }
 
+.shot-card.editing {
+  cursor: default;
+  transform: none;
+  box-shadow: 0 0 0 2px var(--accent);
+  border-color: var(--accent);
+}
+
+.shot-edit-btn {
+  position: absolute;
+  top: 2px;
+  right: 28px;
+  padding: 2px 6px;
+  font-size: 13px;
+  color: var(--text-dim);
+  cursor: pointer;
+  opacity: 0;
+  transition: opacity 0.15s;
+  border-radius: 4px;
+  line-height: 1;
+  z-index: 5;
+}
+
+.shot-card:hover .shot-edit-btn {
+  opacity: 0.6;
+}
+
+.shot-edit-btn:hover {
+  opacity: 1 !important;
+  background: var(--bg-tag);
+  color: var(--accent);
+}
+
+.shot-edit-form {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding: 4px 0;
+}
+
+.shot-edit-field {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.shot-edit-field label {
+  font-size: 11px;
+  font-weight: 600;
+  color: var(--text-muted);
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+.shot-edit-field .input {
+  font-size: 13px;
+  padding: 6px 10px;
+}
+
+.shot-edit-textarea {
+  resize: vertical;
+  min-height: 48px;
+  font-family: inherit;
+}
+
+.shot-edit-row {
+  display: flex;
+  gap: 8px;
+}
+
+.shot-edit-row .shot-edit-field {
+  flex: 1;
+}
+
+.shot-edit-actions {
+  display: flex;
+  gap: 6px;
+  margin-top: 4px;
+}
+
 .shot-card.selected {
   border-color: var(--accent);
   box-shadow: 0 0 0 2px var(--accent-dim);

@@ -73,6 +73,7 @@ type Action =
   | { type: 'CLEAR_NOTIFICATIONS' }
   | { type: 'DELETE_SHOT'; row: number }
   | { type: 'DELETE_SHOTS'; rows: number[] }
+  | { type: 'UPDATE_SHOT'; row: number; data: Partial<ShotRecord> }
   | { type: 'UPDATE_SHOT_ORDER'; rows: { row: number; shootOrder: string }[] }
 
 function generateId(): string {
@@ -206,6 +207,11 @@ function reducer(state: AppState, action: Action): AppState {
       return { ...state, shots: state.shots.filter(s => s.row !== action.row) }
     case 'DELETE_SHOTS':
       return { ...state, shots: state.shots.filter(s => !action.rows.includes(s.row)) }
+    case 'UPDATE_SHOT':
+      return {
+        ...state,
+        shots: state.shots.map(s => s.row === action.row ? { ...s, ...action.data } : s),
+      }
     case 'UPDATE_SHOT_ORDER':
       return {
         ...state,
@@ -372,6 +378,7 @@ interface AppContextType {
   setShotPriority: (row: number, priority: string) => void
   deleteShot: (row: number) => void
   deleteShots: (rows: number[]) => void
+  updateShot: (row: number, data: Partial<ShotRecord>) => void
   reorderShots: (sorted: ShotRecord[]) => void
   toggleTheme: () => void
   createProject: (name: string, sheetUrl: string, docUrl?: string, relayUrl?: string, group?: string, groupColor?: string) => Promise<void>
@@ -508,6 +515,10 @@ export function AppProvider({ children }: { children: ReactNode }) {
 
   const deleteShots = useCallback((rows: number[]) => {
     dispatch({ type: 'DELETE_SHOTS', rows })
+  }, [])
+
+  const updateShot = useCallback((row: number, data: Partial<ShotRecord>) => {
+    dispatch({ type: 'UPDATE_SHOT', row, data })
   }, [])
 
   const reorderShots = useCallback((sorted: ShotRecord[]) => {
@@ -692,7 +703,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
   return (
     <AppContext.Provider value={{
       state, dispatch, loadShots, openSlate, closeSlate, goToView, goToNextShot, goToPrevShot,
-      recordTake, updateTake, toggleDone, setShotPriority, deleteShot, deleteShots, reorderShots,
+      recordTake, updateTake, toggleDone, setShotPriority, deleteShot, deleteShots, updateShot, reorderShots,
       toggleTheme, createProject, switchProject, deleteProject, updateProject, activeProject, login,
       updateShotCrew, addCrewMember, removeCrewMember, updateCrewMember,
       addNotification, markNotificationRead, clearNotifications, triggerOnDeck,
