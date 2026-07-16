@@ -97,6 +97,7 @@ export function ScriptReview() {
         graphic: '',
         title: '',
         effect: '',
+        duration: '',
         crew: [],
       },
     })

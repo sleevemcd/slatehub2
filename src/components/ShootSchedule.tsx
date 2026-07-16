@@ -1,6 +1,10 @@
-import { useMemo } from 'react'
+import { useMemo, useState } from 'react'
 import { useApp } from '../context/AppContext'
 import type { ShotRecord } from '../types'
+
+function generateId(): number {
+  return Date.now() + Math.floor(Math.random() * 10000)
+}
 
 function daySort(a: string, b: string) {
   const an = parseInt(a.replace(/\D/g, ''), 10)
@@ -17,8 +21,10 @@ function orderSort(a: string, b: string) {
 }
 
 export function ShootSchedule() {
-  const { state, openSlate, toggleDone, goToView } = useApp()
+  const { state, dispatch, openSlate, toggleDone, goToView } = useApp()
   const { shots } = state
+  const [showAddDay, setShowAddDay] = useState(false)
+  const [newDay, setNewDay] = useState('')
 
   const { days, stats } = useMemo(() => {
     const dayMap = new Map<string, ShotRecord[]>()
@@ -51,7 +57,10 @@ export function ShootSchedule() {
   return (
     <div className="shoot-schedule-view">
       <div className="schedule-header">
-        <h2>Shoot Schedule</h2>
+        <div className="schedule-header-top">
+          <h2>Shoot Schedule</h2>
+          <button className="btn btn-sm btn-ghost" onClick={() => setShowAddDay(true)}>+ Add Day</button>
+        </div>
         <div className="schedule-stats">
           <span className="schedule-stat">{stats.total} shots</span>
           <span className="schedule-stat">{stats.done} done</span>
@@ -65,6 +74,67 @@ export function ShootSchedule() {
         </div>
         <span className="schedule-progress-label">{Math.round(stats.total ? (stats.done / stats.total) * 100 : 0)}%</span>
       </div>
+
+      {showAddDay && (
+        <div className="schedule-add-day-form">
+          <input className="input" placeholder="Day 1, Day 2, etc."
+            value={newDay} onChange={e => setNewDay(e.target.value)}
+            autoFocus
+            onKeyDown={e => {
+              if (e.key === 'Enter' && newDay.trim()) {
+                dispatch({ type: 'ADD_SHOT', shot: {
+                  row: generateId(),
+                  type: '',
+                  description: '',
+                  location: '',
+                  setup: '',
+                  shootDay: newDay.trim(),
+                  shootOrder: '',
+                  subShot: '',
+                  graphic: '',
+                  title: '',
+                  effect: '',
+                  duration: '',
+                  notes: '',
+                  referenceLink: '',
+                  done: false,
+                  priority: 'none',
+                  crew: [],
+                }})
+                setNewDay('')
+                setShowAddDay(false)
+              }
+            }} />
+          <div className="schedule-add-day-actions">
+            <button className="btn btn-sm" onClick={() => {
+              if (newDay.trim()) {
+                dispatch({ type: 'ADD_SHOT', shot: {
+                  row: generateId(),
+                  type: '',
+                  description: '',
+                  location: '',
+                  setup: '',
+                  shootDay: newDay.trim(),
+                  shootOrder: '',
+                  subShot: '',
+                  graphic: '',
+                  title: '',
+                  effect: '',
+                  duration: '',
+                  notes: '',
+                  referenceLink: '',
+                  done: false,
+                  priority: 'none',
+                  crew: [],
+                }})
+                setNewDay('')
+                setShowAddDay(false)
+              }
+            }}>Add</button>
+            <button className="btn btn-ghost" onClick={() => { setShowAddDay(false); setNewDay('') }}>Cancel</button>
+          </div>
+        </div>
+      )}
 
       <div className="schedule-days">
         {days.map(([day, dayShots]) => {
@@ -115,6 +185,7 @@ export function ShootSchedule() {
                         {shot.graphic && <span className="meta-graphic">🎨 {shot.graphic}</span>}
                         {shot.effect && <span className="meta-effect">⚡ {shot.effect}</span>}
                         {shot.title && <span className="meta-title">📝 {shot.title}</span>}
+                        {shot.duration && <span className="meta-duration">⏱ {shot.duration}</span>}
                         {shot.subShot && <span className="meta-sub">{shot.subShot}</span>}
                         {shot.crew && shot.crew.length > 0 && (
                           <span className="meta-crew">{shot.crew.join(', ')}</span>

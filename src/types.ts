@@ -41,6 +41,7 @@ export interface ShotRecord {
   graphic: string
   title: string
   effect: string
+  duration: string
 }
 
 export type Priority = 'must-have' | 'nice-to-have' | 'b-roll' | ''

@@ -18,7 +18,6 @@ interface ShotCardProps {
   onDragStart?: (e: React.DragEvent, row: number) => void
   onDragOver?: (e: React.DragEvent, row: number) => void
   onDrop?: (e: React.DragEvent, row: number) => void
-  onDelete?: (row: number) => void
 }
 
 function CrewBadges({ crew }: { crew: string[] }) {
@@ -30,7 +29,7 @@ function CrewBadges({ crew }: { crew: string[] }) {
   )
 }
 
-export function ShotCard({ shot, takeCount, showRef, onSelect, onToggleDone, onSetPriority, onEditShot, layout, selected, onToggleSelect, selectMode, onDragStart, onDragOver, onDrop, onDelete }: ShotCardProps) {
+export function ShotCard({ shot, takeCount, showRef, onSelect, onToggleDone, onSetPriority, onEditShot, layout, selected, onToggleSelect, selectMode, onDragStart, onDragOver, onDrop }: ShotCardProps) {
   const [editing, setEditing] = useState(false)
   const [editForm, setEditForm] = useState<Partial<ShotRecord>>({})
 
@@ -78,6 +77,7 @@ export function ShotCard({ shot, takeCount, showRef, onSelect, onToggleDone, onS
       title: shot.title,
       effect: shot.effect,
       referenceLink: shot.referenceLink,
+      duration: shot.duration,
     })
     setEditing(true)
   }
@@ -172,10 +172,17 @@ export function ShotCard({ shot, takeCount, showRef, onSelect, onToggleDone, onS
             onChange={e => setEditForm(f => ({ ...f, effect: e.target.value }))} />
         </div>
       </div>
-      <div className="shot-edit-field">
-        <label>Reference Link</label>
-        <input className="input" value={editForm.referenceLink || ''}
-          onChange={e => setEditForm(f => ({ ...f, referenceLink: e.target.value }))} />
+      <div className="shot-edit-row">
+        <div className="shot-edit-field">
+          <label>Duration</label>
+          <input className="input" placeholder="e.g. 0:30, 1:15" value={editForm.duration || ''}
+            onChange={e => setEditForm(f => ({ ...f, duration: e.target.value }))} />
+        </div>
+        <div className="shot-edit-field">
+          <label>Reference Link</label>
+          <input className="input" value={editForm.referenceLink || ''}
+            onChange={e => setEditForm(f => ({ ...f, referenceLink: e.target.value }))} />
+        </div>
       </div>
       <div className="shot-edit-field">
         <label>Title / Overlay Text</label>
@@ -226,6 +233,7 @@ export function ShotCard({ shot, takeCount, showRef, onSelect, onToggleDone, onS
               {shot.graphic && <span className="shot-tag shot-tag-graphic">🎨 {shot.graphic}</span>}
               {shot.effect && <span className="shot-tag shot-tag-effect">⚡ {shot.effect}</span>}
               {shot.title && <span className="shot-tag shot-tag-title">📝 {shot.title}</span>}
+              {shot.duration && <span className="shot-tag shot-tag-duration">⏱ {shot.duration}</span>}
               {priorityBadge}
               <span className="shot-takes">{takeCount} take{takeCount !== 1 ? 's' : ''}</span>
               <CrewBadges crew={shot.crew} />
@@ -246,6 +254,7 @@ export function ShotCard({ shot, takeCount, showRef, onSelect, onToggleDone, onS
             {shot.shootDay && <span className="shot-day">Day {shot.shootDay}</span>}
             {shot.graphic && <span className="shot-tag shot-tag-graphic">🎨 {shot.graphic}</span>}
             {shot.effect && <span className="shot-tag shot-tag-effect">⚡ {shot.effect}</span>}
+            {shot.duration && <span className="shot-tag shot-tag-duration">⏱ {shot.duration}</span>}
             {priorityBadge}
             <label className="done-toggle" onClick={e => e.stopPropagation()}>
               <input type="checkbox" checked={shot.done} onChange={onToggleDone} />

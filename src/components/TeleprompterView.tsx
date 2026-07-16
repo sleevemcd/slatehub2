@@ -25,6 +25,7 @@ export function TeleprompterView() {
   const [showSettings, setShowSettings] = useState(false)
   const [connected, setConnected] = useState(false)
   const [docError, setDocError] = useState('')
+  const [hideUI, setHideUI] = useState(false)
 
   const scrollRef = useRef<HTMLDivElement>(null)
   const animRef = useRef<number>(0)
@@ -32,6 +33,10 @@ export function TeleprompterView() {
   const pollingRef = useRef<ReturnType<typeof setInterval> | undefined>(undefined)
   const playingRef = useRef(playing)
   const speedRef = useRef(speed)
+
+  const isDragging = useRef(false)
+  const dragStartY = useRef(0)
+  const dragStartScroll = useRef(0)
 
   useEffect(() => { playingRef.current = playing }, [playing])
   useEffect(() => { speedRef.current = speed }, [speed])
@@ -126,6 +131,48 @@ export function TeleprompterView() {
     }
     if (e.key === 'ArrowUp') setSpeed(s => Math.max(1, s - 1))
     if (e.key === 'ArrowDown') setSpeed(s => Math.min(20, s + 1))
+    if (e.key === 'Escape') {
+      if (hideUI) setHideUI(false)
+      else if (showSettings) setShowSettings(false)
+    }
+    if (e.key === 'h' || e.key === 'H') setHideUI(h => !h)
+  }
+
+  const handleMouseDown = (e: React.MouseEvent) => {
+    if (hideUI || playing) return
+    isDragging.current = true
+    dragStartY.current = e.clientY
+    dragStartScroll.current = scrollRef.current?.scrollTop ?? 0
+    e.preventDefault()
+  }
+
+  const handleMouseMove = (e: React.MouseEvent) => {
+    if (!isDragging.current || !scrollRef.current) return
+    const dy = e.clientY - dragStartY.current
+    scrollRef.current.scrollTop = dragStartScroll.current - dy
+    handleScroll()
+  }
+
+  const handleMouseUp = () => {
+    isDragging.current = false
+  }
+
+  const handleTouchStart = (e: React.TouchEvent) => {
+    if (hideUI || playing) return
+    isDragging.current = true
+    dragStartY.current = e.touches[0].clientY
+    dragStartScroll.current = scrollRef.current?.scrollTop ?? 0
+  }
+
+  const handleTouchMove = (e: React.TouchEvent) => {
+    if (!isDragging.current || !scrollRef.current) return
+    const dy = e.touches[0].clientY - dragStartY.current
+    scrollRef.current.scrollTop = dragStartScroll.current - dy
+    handleScroll()
+  }
+
+  const handleTouchEnd = () => {
+    isDragging.current = false
   }
 
   const handleScroll = () => {
@@ -188,9 +235,16 @@ export function TeleprompterView() {
 
   return (
     <div
-      className={`tp-view ${mirror ? 'tp-mirrored' : ''}`}
+      className={`tp-view ${mirror ? 'tp-mirrored' : ''} ${hideUI ? 'tp-hide-ui' : ''}`}
       tabIndex={0}
       onKeyDown={handleKeyDown}
+      onMouseDown={handleMouseDown}
+      onMouseMove={handleMouseMove}
+      onMouseUp={handleMouseUp}
+      onMouseLeave={handleMouseUp}
+      onTouchStart={handleTouchStart}
+      onTouchMove={handleTouchMove}
+      onTouchEnd={handleTouchEnd}
     >
       <div className="tp-controls">
         <div className="tp-controls-left">
@@ -198,7 +252,7 @@ export function TeleprompterView() {
           <button className={`btn-icon tp-btn ${playing ? 'active' : ''}`} onClick={() => setPlaying(p => !p)} title="Play (Space)">
             {playing ? '⏸' : '▶'}
           </button>
-          <button className="btn-icon tp-btn" onClick={() => setMirror(m => !m)} title="Mirror flip">
+          <button className={`btn-icon tp-btn ${mirror ? 'active' : ''}`} onClick={() => setMirror(m => !m)} title="Mirror flip">
             {mirror ? '↔' : '↕'}
           </button>
           <button className="btn-icon tp-btn" onClick={() => fetchDoc(false)} title="Reload doc">⟳</button>
@@ -214,6 +268,9 @@ export function TeleprompterView() {
           <span className="tp-speed-label">{speed}</span>
         </div>
         <div className="tp-controls-right">
+          <button className="btn-icon tp-btn" onClick={() => setHideUI(h => !h)} title="Hide UI (H)">
+            ⛶
+          </button>
           <button className={`btn-icon tp-btn ${showSettings ? 'active' : ''}`}
             onClick={() => setShowSettings(!showSettings)} title="Settings">
             ⚙
@@ -229,7 +286,8 @@ export function TeleprompterView() {
         </div>
       </div>
 
-      <div className="tp-scroll-container" ref={scrollRef} onScroll={handleScroll}
+      <div className={`tp-scroll-container ${hideUI ? 'tp-scroll-fullscreen' : ''}`}
+        ref={scrollRef} onScroll={handleScroll}
         style={{ padding: `20px ${marginX}px` }}>
         <div className="tp-text" style={{ fontSize: `${fontSize}px`, lineHeight, fontFamily, maxWidth: `${maxWidth}px`, margin: '0 auto' }}>
           {lines.map((line, i) => (

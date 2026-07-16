@@ -393,6 +393,10 @@
   background: rgba(167, 139, 250, 0.15);
   color: #a78bfa;
 }
+.shot-tag-duration {
+  background: rgba(90, 158, 106, 0.15);
+  color: #5a9e6a;
+}
 .shot-title-overlay {
   font-size: 14px;
   font-weight: 600;
@@ -470,25 +474,24 @@
 .shot-edit-btn {
   position: absolute;
   top: 2px;
-  right: 28px;
-  padding: 2px 6px;
-  font-size: 13px;
-  color: var(--text-dim);
+  right: 32px;
+  padding: 4px 8px;
+  font-size: 14px;
+  color: var(--text-muted);
   cursor: pointer;
-  opacity: 0;
-  transition: opacity 0.15s;
+  opacity: 0.7;
+  transition: all 0.15s;
   border-radius: 4px;
   line-height: 1;
   z-index: 5;
 }
 
 .shot-card:hover .shot-edit-btn {
-  opacity: 0.6;
+  opacity: 1;
 }
 
 .shot-edit-btn:hover {
-  opacity: 1 !important;
-  background: var(--bg-tag);
+  background: var(--accent-dim);
   color: var(--accent);
 }
 
@@ -972,6 +975,17 @@
 }
 
 /* === Take Log === */
+.take-log-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 8px;
+}
+.take-log-header h3 { margin: 0; }
+.take-clear-btn {
+  font-size: 12px;
+  color: var(--text-dim);
+}
 .take-list {
   display: flex;
   flex-direction: column;
@@ -1278,6 +1292,25 @@
   z-index: 1000;
   outline: none;
   color: #fff;
+  cursor: grab;
+}
+.tp-view:active {
+  cursor: grabbing;
+}
+.tp-view.tp-hide-ui .tp-controls,
+.tp-view.tp-hide-ui .tp-bottom-bar,
+.tp-view.tp-hide-ui .tp-sidebar-overlay {
+  opacity: 0;
+  pointer-events: none;
+}
+.tp-view.tp-hide-ui .tp-scroll-fullscreen {
+  padding: 0 !important;
+}
+.tp-view.tp-hide-ui .tp-text {
+  cursor: none;
+}
+.tp-view.tp-hide-ui .tp-text:hover {
+  cursor: none;
 }
 
 .tp-view.tp-mirrored {
@@ -1420,7 +1453,19 @@
 
 .tp-line {
   margin: 0;
-  padding: 2px 0;
+  padding: 0.12em 0;
+  letter-spacing: 0.02em;
+  font-weight: 400;
+  text-rendering: optimizeLegibility;
+  -webkit-font-smoothing: antialiased;
+  line-height: var(--tp-lh, 1.7);
+  color: #eee;
+}
+@media (min-width: 768px) {
+  .tp-line {
+    font-weight: 350;
+    letter-spacing: 0.015em;
+  }
 }
 
 .tp-line.tp-empty {
@@ -2940,30 +2985,28 @@
 }
 .script-add-shot {
   position: absolute;
-  left: 40px;
-  top: 50%;
-  transform: translateY(-50%);
-  width: 18px;
-  height: 18px;
+  left: 36px;
+  top: 8px;
+  width: 22px;
+  height: 22px;
   border-radius: 50%;
   border: none;
   background: var(--accent);
-  color: #fff;
-  font-size: 12px;
+  color: #1a1a1a;
+  font-size: 14px;
+  font-weight: 700;
   line-height: 1;
   cursor: pointer;
-  opacity: 0;
   transition: all 0.12s;
   display: flex;
   align-items: center;
   justify-content: center;
   padding: 0;
-}
-.script-paragraph:hover .script-add-shot {
-  opacity: 1;
+  box-shadow: 0 2px 6px var(--shadow);
+  z-index: 2;
 }
 .script-add-shot:hover {
-  transform: translateY(-50%) scale(1.2);
+  transform: scale(1.15);
   background: var(--accent-hover);
 }
 
@@ -3088,13 +3131,32 @@
 }
 .schedule-header {
   display: flex;
+  flex-direction: column;
+  gap: 8px;
+  margin-bottom: 12px;
+}
+.schedule-header-top {
+  display: flex;
   justify-content: space-between;
   align-items: center;
-  margin-bottom: 12px;
 }
 .schedule-header h2 {
   font-size: 20px;
   color: var(--text-primary);
+}
+.schedule-add-day-form {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding: 12px;
+  background: var(--bg-surface);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  margin-bottom: 12px;
+}
+.schedule-add-day-actions {
+  display: flex;
+  gap: 8px;
 }
 .schedule-stats {
   display: flex;

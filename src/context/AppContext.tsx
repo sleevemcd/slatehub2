@@ -44,6 +44,7 @@ type Action =
   | { type: 'MARK_TAKE_GOOD'; takeId: string; good: boolean }
   | { type: 'MARK_TAKE_CIRCLED'; takeId: string; circled: boolean }
   | { type: 'SET_TAKE_NOTES'; takeId: string; notes: string }
+  | { type: 'DELETE_TAKE'; id: string }
   | { type: 'UPDATE_TAKE'; id: string; data: Partial<Take> }
   | { type: 'SET_THEME'; theme: Theme }
   | { type: 'SET_TELEPROMPTER_CONFIG'; config: Partial<TeleprompterConfig> }
@@ -270,6 +271,8 @@ function reducer(state: AppState, action: Action): AppState {
           t.id === action.takeId ? { ...t, notes: action.notes } : t
         ),
       }
+    case 'DELETE_TAKE':
+      return { ...state, takes: state.takes.filter(t => t.id !== action.id) }
     case 'UPDATE_TAKE':
       return {
         ...state,

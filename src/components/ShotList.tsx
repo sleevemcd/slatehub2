@@ -5,7 +5,7 @@ import { ShotCard } from './ShotCard'
 import type { ShotRecord } from '../types'
 
 export function ShotList() {
-  const { state, dispatch, openSlate, toggleDone, setShotPriority, deleteShot, deleteShots, updateShot, reorderShots } = useApp()
+  const { state, dispatch, openSlate, toggleDone, setShotPriority, deleteShots, updateShot, reorderShots } = useApp()
   const [selectMode, setSelectMode] = useState(false)
   const [selected, setSelected] = useState<Set<number>>(new Set())
   const [dragRow, setDragRow] = useState<number | null>(null)
@@ -89,11 +89,6 @@ export function ShotList() {
     deleteShots(Array.from(selected))
     setSelected(new Set())
   }, [selected, deleteShots])
-
-  const handleDeleteShot = useCallback((row: number) => {
-    if (!confirm('Delete this shot?')) return
-    deleteShot(row)
-  }, [deleteShot])
 
   const handleDragStart = useCallback((e: React.DragEvent, row: number) => {
     setDragRow(row)

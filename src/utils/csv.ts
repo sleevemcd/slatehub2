@@ -70,6 +70,7 @@ export function rowsToShotRecords(headers: string[], rows: string[][]): ShotReco
       graphic: get(row, ['graphic', 'gfx']),
       title: get(row, ['title']),
       effect: get(row, ['effect', 'fx']),
+      duration: get(row, ['duration', 'time', 'length']),
       crew: [],
     }
   }).filter(s => s.type || s.description)

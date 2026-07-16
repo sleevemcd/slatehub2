@@ -1,4 +1,4 @@
-import { useState, useRef, useEffect, useCallback } from 'react'
+import { useState, useRef, useEffect } from 'react'
 import { useApp } from '../context/AppContext'
 
 function playClap() {
@@ -257,7 +257,19 @@ export function SlateView() {
       </div>
 
       <div className="take-log">
-        <h3>Take Log</h3>
+        <div className="take-log-header">
+          <h3>Take Log</h3>
+          {shotTakes.length > 0 && (
+            <button className="btn btn-sm btn-ghost take-clear-btn"
+              onClick={() => {
+                if (confirm(`Clear all ${shotTakes.length} take${shotTakes.length !== 1 ? 's' : ''} for this shot?`)) {
+                  shotTakes.forEach(t => dispatch({ type: 'DELETE_TAKE', id: t.id }))
+                }
+              }}>
+              Clear All
+            </button>
+          )}
+        </div>
         {shotTakes.length === 0 ? (
           <p className="empty-hint">No takes recorded yet.</p>
         ) : (
