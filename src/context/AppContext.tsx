@@ -117,6 +117,33 @@ function saveCrewData(projectId: string | null, shots: ShotRecord[], members: Cr
   localStorage.setItem(crewStorageKey(projectId), JSON.stringify({ shots: shots.map(s => ({ row: s.row, crew: s.crew })), members }))
 }
 
+function shotStorageKey(projectId: string | null): string {
+  return `slatehub-shots-${projectId || 'default'}`
+}
+
+function loadTakes(projectId: string | null): Take[] {
+  try {
+    const raw = localStorage.getItem(`slatehub-takes-${projectId || 'default'}`)
+    return raw ? JSON.parse(raw) : []
+  } catch { return [] }
+}
+
+function saveTakes(projectId: string | null, takes: Take[]) {
+  localStorage.setItem(`slatehub-takes-${projectId || 'default'}`, JSON.stringify(takes))
+}
+
+function loadShotData(projectId: string | null): { shots: ShotRecord[]; sheetUrl: string } {
+  try {
+    const raw = localStorage.getItem(shotStorageKey(projectId))
+    if (raw) return JSON.parse(raw)
+  } catch {}
+  return { shots: [], sheetUrl: '' }
+}
+
+function saveShotData(projectId: string | null, shots: ShotRecord[], sheetUrl: string) {
+  localStorage.setItem(shotStorageKey(projectId), JSON.stringify({ shots, sheetUrl }))
+}
+
 function loadSavedUsers(): User[] {
   try {
     const raw = localStorage.getItem('slatehub-saved-users')
@@ -709,8 +736,32 @@ export function AppProvider({ children }: { children: ReactNode }) {
       if (apiData.takes) {
         apiData.takes.forEach(t => dispatch({ type: 'ADD_TAKE', take: t }))
       }
+      if (!apiData?.shots) {
+        const local = loadShotData(apiData?.activeProjectId || state.activeProjectId)
+        if (local.shots.length > 0) {
+          dispatch({ type: 'SET_SHOTS', shots: local.shots })
+          if (local.sheetUrl) dispatch({ type: 'SET_SHEET_URL', url: local.sheetUrl })
+        }
+        const localTakes = loadTakes(apiData?.activeProjectId || state.activeProjectId)
+        if (localTakes.length > 0) {
+          localTakes.forEach(t => dispatch({ type: 'ADD_TAKE', take: t }))
+        }
+      }
     })
   }, [])
+
+  const projectId = state.activeProjectId
+  useEffect(() => {
+    if (state.shots.length > 0 || state.sheetUrl) {
+      saveShotData(projectId, state.shots, state.sheetUrl)
+    }
+  }, [state.shots, state.sheetUrl, projectId])
+
+  useEffect(() => {
+    if (state.takes.length > 0) {
+      saveTakes(projectId, state.takes)
+    }
+  }, [state.takes, projectId])
 
   return (
     <AppContext.Provider value={{
