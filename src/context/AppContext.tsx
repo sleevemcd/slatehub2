@@ -1,8 +1,28 @@
-import { createContext, useContext, useReducer, useCallback, useEffect } from 'react'
+import { createContext, useContext, useReducer, useCallback, useEffect, useRef } from 'react'
 import type { ReactNode } from 'react'
 import type { AppState, ShotRecord, Take, SortKey, ViewState, TeleprompterConfig, TeleprompterState, Theme, Project, Layout, GroupBy, User, CrewMember, Notification, TeleprompterMarker } from '../types'
 import { fetchSheetCsv } from '../utils/sheet'
 import { parseCSV, rowsToShotRecords } from '../utils/csv'
+
+const API_BASE = window.location.origin + '/api'
+
+async function loadFromApi(): Promise<Partial<AppState> | null> {
+  try {
+    const res = await fetch(`${API_BASE}/data`)
+    if (!res.ok) return null
+    return await res.json()
+  } catch { return null }
+}
+
+async function saveToApi(state: Partial<AppState>) {
+  try {
+    await fetch(`${API_BASE}/data`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(state),
+    })
+  } catch { /* silent fail — fallback to localStorage */ }
+}
 
 type Action =
   | { type: 'SET_VIEW'; view: ViewState }
@@ -43,6 +63,8 @@ type Action =
   | { type: 'SET_ACTIVE_PROJECT'; id: string | null }
   | { type: 'LOAD_PROJECT_DATA'; shots: ShotRecord[]; takes: Take[]; sheetUrl: string; writeBackUrl: string; teleprompter: TeleprompterConfig }
   | { type: 'SET_SHOT_CREW'; row: number; crew: string[] }
+  | { type: 'SET_PROJECTS'; projects: Project[] }
+  | { type: 'ADD_SAVED_USER'; user: User }
   | { type: 'ADD_CREW_MEMBER'; member: CrewMember }
   | { type: 'REMOVE_CREW_MEMBER'; name: string }
   | { type: 'UPDATE_CREW_MEMBER'; name: string; data: Partial<CrewMember> }
@@ -289,6 +311,10 @@ function reducer(state: AppState, action: Action): AppState {
           s.row === action.row ? { ...s, crew: action.crew } : s
         ),
       }
+    case 'SET_PROJECTS':
+      return { ...state, projects: action.projects }
+    case 'ADD_SAVED_USER':
+      return { ...state, savedUsers: [...state.savedUsers.filter(u => u.name !== action.user.name), action.user] }
     case 'ADD_CREW_MEMBER':
       return { ...state, crewMembers: [...state.crewMembers, action.member] }
     case 'REMOVE_CREW_MEMBER':
@@ -585,6 +611,51 @@ export function AppProvider({ children }: { children: ReactNode }) {
     } else if (state.projects.length === 0) {
       dispatch({ type: 'SET_VIEW', view: 'setup' })
     }
+  }, [])
+
+  const saveTimer = useRef<ReturnType<typeof setTimeout> | undefined>(undefined)
+  const prevSaveRef = useRef('')
+  useEffect(() => {
+    const snapshot = JSON.stringify({
+      projects: state.projects,
+      activeProjectId: state.activeProjectId,
+      crewMembers: state.crewMembers,
+      quickMessages: state.quickMessages,
+      savedUsers: state.savedUsers,
+      theme: state.theme,
+    })
+    if (snapshot === prevSaveRef.current) return
+    prevSaveRef.current = snapshot
+    if (saveTimer.current) clearTimeout(saveTimer.current)
+    saveTimer.current = setTimeout(() => saveToApi(JSON.parse(snapshot)), 1000)
+    return () => { if (saveTimer.current) clearTimeout(saveTimer.current) }
+  }, [state.projects, state.activeProjectId, state.crewMembers, state.quickMessages, state.savedUsers, state.theme])
+
+  const loadedRef = useRef(false)
+  useEffect(() => {
+    if (loadedRef.current) return
+    loadedRef.current = true
+    loadFromApi().then(apiData => {
+      if (!apiData) return
+      if (apiData.projects && apiData.projects.length > 0) {
+        dispatch({ type: 'SET_PROJECTS', projects: apiData.projects })
+      }
+      if (apiData.activeProjectId) {
+        dispatch({ type: 'SET_ACTIVE_PROJECT', id: apiData.activeProjectId })
+      }
+      if (apiData.crewMembers) {
+        apiData.crewMembers.forEach(m => dispatch({ type: 'ADD_CREW_MEMBER', member: m }))
+      }
+      if (apiData.savedUsers) {
+        apiData.savedUsers.forEach(u => dispatch({ type: 'ADD_SAVED_USER', user: u }))
+      }
+      if (apiData.quickMessages) {
+        dispatch({ type: 'SET_QUICK_MESSAGES', messages: apiData.quickMessages })
+      }
+      if (apiData.theme) {
+        dispatch({ type: 'SET_THEME', theme: apiData.theme })
+      }
+    })
   }, [])
 
   return (
