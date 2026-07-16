@@ -6,7 +6,7 @@ import { fileURLToPath } from 'url'
 const __dirname = path.dirname(fileURLToPath(import.meta.url))
 const DATA_DIR = process.env.DATA_DIR || '/data'
 const DATA_FILE = path.join(DATA_DIR, 'slatehub-data.json')
-const PORT = process.env.PORT || 80
+const PORT = 80
 
 const MIME = {
   '.html': 'text/html',
