@@ -1,5 +1,29 @@
-import { useState, useRef, useEffect } from 'react'
+import { useState, useRef, useEffect, useCallback } from 'react'
 import { useApp } from '../context/AppContext'
+
+function playClap() {
+  try {
+    const ctx = new (window.AudioContext || (window as any).webkitAudioContext)()
+    const noise = ctx.createBufferSource()
+    const buf = ctx.createBuffer(1, ctx.sampleRate * 0.15, ctx.sampleRate)
+    const data = buf.getChannelData(0)
+    for (let i = 0; i < data.length; i++) {
+      const t = i / ctx.sampleRate
+      data[i] = (Math.random() * 2 - 1) * Math.exp(-t * 40) * (t < 0.005 ? 1 : Math.exp(-(t - 0.005) * 20))
+    }
+    noise.buffer = buf
+    const gain = ctx.createGain()
+    gain.gain.setValueAtTime(0.8, ctx.currentTime)
+    gain.gain.exponentialRampToValueAtTime(0.01, ctx.currentTime + 0.15)
+    const filter = ctx.createBiquadFilter()
+    filter.type = 'lowpass'
+    filter.frequency.setValueAtTime(3000, ctx.currentTime)
+    filter.frequency.exponentialRampToValueAtTime(500, ctx.currentTime + 0.1)
+    noise.connect(filter).connect(gain).connect(ctx.destination)
+    noise.start()
+    setTimeout(() => ctx.close(), 200)
+  } catch {}
+}
 
 function formatTimecode(frames: number): string {
   const pad = (n: number) => String(n).padStart(2, '0')
@@ -43,6 +67,7 @@ export function SlateView() {
   const handleRecordTake = (good: boolean) => {
     recordTake(good)
     setClapped(true)
+    playClap()
     setTimeout(() => setClapped(false), 200)
     setTcRunning(false)
     setTcFrames(0)
@@ -184,6 +209,7 @@ export function SlateView() {
         <div className="slate-footer">
           <div className="slate-user">{state.currentUser.name || 'Not set'}{state.currentUser.role ? ` (${state.currentUser.role})` : ''}</div>
           <div className="slate-take-actions">
+            <button className="btn btn-clap" onClick={() => { setClapped(true); playClap(); setTimeout(() => setClapped(false), 200) }} title="Mark shot (clap only)">🎬 Clap</button>
             <button className="btn btn-good" onClick={() => handleRecordTake(true)}>✓ Good Take</button>
             <button className="btn btn-ng" onClick={() => handleRecordTake(false)}>✗ No Good</button>
           </div>

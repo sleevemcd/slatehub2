@@ -876,6 +876,21 @@
   font-weight: 600;
   cursor: pointer;
 }
+.btn-clap {
+  background: transparent;
+  color: #e0c87a;
+  border: 1px solid #e0c87a;
+  padding: 3px 10px;
+  border-radius: 4px;
+  font-size: 12px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.1s;
+}
+.btn-clap:hover {
+  background: #e0c87a;
+  color: #1a1a2e;
+}
 .tc-display {
   font-size: 36px;
   font-weight: 800;
