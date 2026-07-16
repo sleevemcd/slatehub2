@@ -77,6 +77,7 @@ export function ShotCard({ shot, takeCount, showRef, onSelect, onToggleDone, onS
       graphic: shot.graphic,
       title: shot.title,
       effect: shot.effect,
+      referenceLink: shot.referenceLink,
     })
     setEditing(true)
   }
@@ -170,6 +171,11 @@ export function ShotCard({ shot, takeCount, showRef, onSelect, onToggleDone, onS
           <input className="input" placeholder="Fade, Wipe, etc." value={editForm.effect || ''}
             onChange={e => setEditForm(f => ({ ...f, effect: e.target.value }))} />
         </div>
+      </div>
+      <div className="shot-edit-field">
+        <label>Reference Link</label>
+        <input className="input" value={editForm.referenceLink || ''}
+          onChange={e => setEditForm(f => ({ ...f, referenceLink: e.target.value }))} />
       </div>
       <div className="shot-edit-field">
         <label>Title / Overlay Text</label>

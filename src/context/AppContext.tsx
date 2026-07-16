@@ -665,13 +665,16 @@ export function AppProvider({ children }: { children: ReactNode }) {
       quickMessages: state.quickMessages,
       savedUsers: state.savedUsers,
       theme: state.theme,
+      shots: state.shots,
+      sheetUrl: state.sheetUrl,
+      takes: state.takes,
     })
     if (snapshot === prevSaveRef.current) return
     prevSaveRef.current = snapshot
     if (saveTimer.current) clearTimeout(saveTimer.current)
     saveTimer.current = setTimeout(() => saveToApi(JSON.parse(snapshot)), 1000)
     return () => { if (saveTimer.current) clearTimeout(saveTimer.current) }
-  }, [state.projects, state.activeProjectId, state.crewMembers, state.quickMessages, state.savedUsers, state.theme])
+  }, [state.projects, state.activeProjectId, state.crewMembers, state.quickMessages, state.savedUsers, state.theme, state.shots, state.sheetUrl, state.takes])
 
   const loadedRef = useRef(false)
   useEffect(() => {
@@ -696,6 +699,15 @@ export function AppProvider({ children }: { children: ReactNode }) {
       }
       if (apiData.theme) {
         dispatch({ type: 'SET_THEME', theme: apiData.theme })
+      }
+      if (apiData.shots) {
+        dispatch({ type: 'SET_SHOTS', shots: apiData.shots })
+      }
+      if (apiData.sheetUrl) {
+        dispatch({ type: 'SET_SHEET_URL', url: apiData.sheetUrl })
+      }
+      if (apiData.takes) {
+        apiData.takes.forEach(t => dispatch({ type: 'ADD_TAKE', take: t }))
       }
     })
   }, [])
