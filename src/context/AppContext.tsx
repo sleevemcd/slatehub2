@@ -71,6 +71,9 @@ type Action =
   | { type: 'ADD_NOTIFICATION'; notification: Notification }
   | { type: 'MARK_NOTIFICATION_READ'; id: string }
   | { type: 'CLEAR_NOTIFICATIONS' }
+  | { type: 'DELETE_SHOT'; row: number }
+  | { type: 'DELETE_SHOTS'; rows: number[] }
+  | { type: 'UPDATE_SHOT_ORDER'; rows: { row: number; shootOrder: string }[] }
 
 function generateId(): string {
   return Date.now().toString(36) + '-' + Math.random().toString(36).substring(2, 8)
@@ -199,6 +202,18 @@ function reducer(state: AppState, action: Action): AppState {
       }
     case 'ADD_SHOT':
       return { ...state, shots: [...state.shots, action.shot] }
+    case 'DELETE_SHOT':
+      return { ...state, shots: state.shots.filter(s => s.row !== action.row) }
+    case 'DELETE_SHOTS':
+      return { ...state, shots: state.shots.filter(s => !action.rows.includes(s.row)) }
+    case 'UPDATE_SHOT_ORDER':
+      return {
+        ...state,
+        shots: state.shots.map(s => {
+          const update = action.rows.find(u => u.row === s.row)
+          return update ? { ...s, shootOrder: update.shootOrder } : s
+        }),
+      }
     case 'ADD_TAKE':
       return { ...state, takes: [...state.takes, action.take] }
     case 'MARK_TAKE_GOOD':
@@ -355,6 +370,9 @@ interface AppContextType {
   updateTake: (id: string, data: Partial<Take>) => void
   toggleDone: (row: number) => void
   setShotPriority: (row: number, priority: string) => void
+  deleteShot: (row: number) => void
+  deleteShots: (rows: number[]) => void
+  reorderShots: (sorted: ShotRecord[]) => void
   toggleTheme: () => void
   createProject: (name: string, sheetUrl: string, docUrl?: string, relayUrl?: string, group?: string, groupColor?: string) => Promise<void>
   switchProject: (id: string) => Promise<void>
@@ -482,6 +500,19 @@ export function AppProvider({ children }: { children: ReactNode }) {
 
   const setShotPriority = useCallback((row: number, priority: string) => {
     dispatch({ type: 'SET_SHOT_PRIORITY', row, priority })
+  }, [])
+
+  const deleteShot = useCallback((row: number) => {
+    dispatch({ type: 'DELETE_SHOT', row })
+  }, [])
+
+  const deleteShots = useCallback((rows: number[]) => {
+    dispatch({ type: 'DELETE_SHOTS', rows })
+  }, [])
+
+  const reorderShots = useCallback((sorted: ShotRecord[]) => {
+    const updates = sorted.map((s, i) => ({ row: s.row, shootOrder: String(i + 1) }))
+    dispatch({ type: 'UPDATE_SHOT_ORDER', rows: updates })
   }, [])
 
   const toggleTheme = useCallback(() => {
@@ -661,7 +692,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
   return (
     <AppContext.Provider value={{
       state, dispatch, loadShots, openSlate, closeSlate, goToView, goToNextShot, goToPrevShot,
-      recordTake, updateTake, toggleDone, setShotPriority,
+      recordTake, updateTake, toggleDone, setShotPriority, deleteShot, deleteShots, reorderShots,
       toggleTheme, createProject, switchProject, deleteProject, updateProject, activeProject, login,
       updateShotCrew, addCrewMember, removeCrewMember, updateCrewMember,
       addNotification, markNotificationRead, clearNotifications, triggerOnDeck,

@@ -334,15 +334,53 @@
 }
 
 .shot-list-stats {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
   font-size: 13px;
   color: var(--text-dim);
   margin-bottom: 12px;
 }
+.shot-list-actions {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
 
-.shot-grid {
-  display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(320px, 1fr));
-  gap: 12px;
+/* === Bulk Action Bar === */
+.bulk-bar {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 12px;
+  background: var(--accent-dim);
+  border: 1px solid rgba(245, 197, 66, 0.3);
+  border-radius: 8px;
+  margin-bottom: 12px;
+  font-size: 13px;
+}
+.bulk-count {
+  font-weight: 700;
+  color: var(--accent);
+}
+.bulk-spacer {
+  flex: 1;
+}
+.btn-danger {
+  background: var(--danger-bg);
+  border: 1px solid var(--danger-border);
+  color: var(--danger);
+  padding: 6px 14px;
+  border-radius: 6px;
+  font-size: 13px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.15s;
+}
+.btn-danger:hover {
+  background: var(--danger);
+  color: #fff;
+  border-color: var(--danger);
 }
 
 /* === Shot Card === */
@@ -368,6 +406,84 @@
 
 .shot-card.done:hover {
   opacity: 0.8;
+}
+
+.shot-card.selected {
+  border-color: var(--accent);
+  box-shadow: 0 0 0 2px var(--accent-dim);
+}
+
+.shot-card.select-mode {
+  cursor: default;
+}
+
+.shot-card.select-mode:hover {
+  transform: none;
+  border-color: var(--accent);
+}
+
+.shot-drag-handle {
+  position: absolute;
+  top: 2px;
+  right: 2px;
+  padding: 2px 6px;
+  font-size: 12px;
+  color: var(--text-dim);
+  cursor: grab;
+  user-select: none;
+  opacity: 0;
+  transition: opacity 0.15s;
+  letter-spacing: -1px;
+  line-height: 1;
+  border-radius: 4px;
+  z-index: 5;
+}
+
+.shot-card:hover .shot-drag-handle {
+  opacity: 0.6;
+}
+
+.shot-drag-handle:hover {
+  opacity: 1 !important;
+  background: var(--bg-tag);
+}
+
+.shot-drag-handle:active {
+  cursor: grabbing;
+}
+
+.shot-select-box {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 24px;
+  flex-shrink: 0;
+  cursor: pointer;
+  padding: 4px 0;
+}
+
+.shot-select-check {
+  width: 18px;
+  height: 18px;
+  border-radius: 4px;
+  border: 2px solid var(--text-dim);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 11px;
+  font-weight: 700;
+  color: transparent;
+  transition: all 0.15s;
+}
+
+.shot-select-check.checked {
+  background: var(--accent);
+  border-color: var(--accent);
+  color: #1a1a2e;
+}
+
+.select-mode .done-toggle {
+  display: none;
 }
 
 .shot-card-header {

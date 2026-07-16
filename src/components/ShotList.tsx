@@ -1,10 +1,14 @@
-import { useMemo } from 'react'
+import { useState, useMemo, useCallback } from 'react'
 import { useApp } from '../context/AppContext'
 import { FilterBar } from './FilterBar'
 import { ShotCard } from './ShotCard'
+import type { ShotRecord } from '../types'
 
 export function ShotList() {
-  const { state, dispatch, openSlate, toggleDone, setShotPriority } = useApp()
+  const { state, dispatch, openSlate, toggleDone, setShotPriority, deleteShot, deleteShots, reorderShots } = useApp()
+  const [selectMode, setSelectMode] = useState(false)
+  const [selected, setSelected] = useState<Set<number>>(new Set())
+  const [dragRow, setDragRow] = useState<number | null>(null)
 
   const { filtered, groups } = useMemo(() => {
     let result = [...state.shots]
@@ -61,7 +65,62 @@ export function ShotList() {
   const getTakeCount = (row: number) =>
     state.takes.filter(t => t.shotRow === row).length
 
-  const renderCard = (shot: typeof state.shots[0]) => (
+  const toggleSelect = useCallback((row: number) => {
+    setSelected(prev => {
+      const next = new Set(prev)
+      if (next.has(row)) next.delete(row)
+      else next.add(row)
+      return next
+    })
+  }, [])
+
+  const selectAll = useCallback(() => {
+    setSelected(new Set(filtered.map(s => s.row)))
+  }, [filtered])
+
+  const clearSelection = useCallback(() => {
+    setSelected(new Set())
+  }, [])
+
+  const handleDeleteSelected = useCallback(() => {
+    if (selected.size === 0) return
+    const msg = `Delete ${selected.size} shot${selected.size !== 1 ? 's' : ''}?`
+    if (!confirm(msg)) return
+    deleteShots(Array.from(selected))
+    setSelected(new Set())
+  }, [selected, deleteShots])
+
+  const handleDeleteShot = useCallback((row: number) => {
+    if (!confirm('Delete this shot?')) return
+    deleteShot(row)
+  }, [deleteShot])
+
+  const handleDragStart = useCallback((e: React.DragEvent, row: number) => {
+    setDragRow(row)
+    e.dataTransfer.effectAllowed = 'move'
+  }, [])
+
+  const handleDragOver = useCallback((e: React.DragEvent, _row: number) => {
+    e.preventDefault()
+    e.dataTransfer.dropEffect = 'move'
+  }, [])
+
+  const handleDrop = useCallback((e: React.DragEvent, targetRow: number) => {
+    e.preventDefault()
+    if (dragRow === null || dragRow === targetRow) return
+    const sorted = [...state.shots].sort((a, b) =>
+      (parseInt(a.shootOrder) || 0) - (parseInt(b.shootOrder) || 0)
+    )
+    const fromIdx = sorted.findIndex(s => s.row === dragRow)
+    const toIdx = sorted.findIndex(s => s.row === targetRow)
+    if (fromIdx === -1 || toIdx === -1) return
+    const [moved] = sorted.splice(fromIdx, 1)
+    sorted.splice(toIdx, 0, moved)
+    reorderShots(sorted)
+    setDragRow(null)
+  }, [dragRow, state.shots, reorderShots])
+
+  const renderCard = (shot: ShotRecord) => (
     <ShotCard
       key={shot.row}
       shot={shot}
@@ -71,6 +130,12 @@ export function ShotList() {
       onToggleDone={() => toggleDone(shot.row)}
       onSetPriority={setShotPriority}
       layout={state.layout}
+      selected={selected.has(shot.row)}
+      onToggleSelect={toggleSelect}
+      selectMode={selectMode}
+      onDragStart={handleDragStart}
+      onDragOver={handleDragOver}
+      onDrop={handleDrop}
     />
   )
 
@@ -80,12 +145,30 @@ export function ShotList() {
       <div className="shot-list-stats">
         <span>Showing {filtered.length} of {state.shots.length} shots
         {state.filters.search && ` (matching "${state.filters.search}")`}</span>
-        <label className="ref-toggle" title="Show shot type reference instead of description">
-          <input type="checkbox" checked={state.showRef}
-            onChange={e => dispatch({ type: 'SET_SHOW_REF', show: e.target.checked })} />
-          <span className="ref-toggle-label">📖 Ref</span>
-        </label>
+        <div className="shot-list-actions">
+          <button className={`btn btn-sm btn-ghost ${selectMode ? 'active' : ''}`}
+            onClick={() => { setSelectMode(!selectMode); clearSelection() }}>
+            {selectMode ? 'Done' : 'Select'}
+          </button>
+          <label className="ref-toggle" title="Show shot type reference instead of description">
+            <input type="checkbox" checked={state.showRef}
+              onChange={e => dispatch({ type: 'SET_SHOW_REF', show: e.target.checked })} />
+            <span className="ref-toggle-label">📖 Ref</span>
+          </label>
+        </div>
       </div>
+
+      {selectMode && selected.size > 0 && (
+        <div className="bulk-bar">
+          <span className="bulk-count">{selected.size} selected</span>
+          <button className="btn btn-sm" onClick={selectAll}>Select All</button>
+          <button className="btn btn-sm btn-ghost" onClick={clearSelection}>Clear</button>
+          <div className="bulk-spacer" />
+          <button className="btn btn-sm btn-danger" onClick={handleDeleteSelected}>
+            Delete {selected.size > 1 ? 'Selected' : ''}
+          </button>
+        </div>
+      )}
 
       {groups.length > 0 ? (
         <div className={`shot-groups ${state.layout}`}>
