@@ -447,85 +447,207 @@
 
 /* === Slate View (Updated) === */
 .slate-view {
-  max-width: 520px;
+  max-width: 560px;
   margin: 0 auto;
-}
-.slate-header {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  margin-bottom: 16px;
-  gap: 12px;
 }
 .slate-nav {
   display: flex;
   align-items: center;
   gap: 8px;
+  margin-bottom: 16px;
 }
 .slate-title {
   font-size: 16px;
   font-weight: 700;
   color: var(--text-primary);
-}
-.slate-card {
-  display: flex;
-  flex-direction: column;
-  gap: 16px;
-}
-.slate-display {
-  background: var(--slate-bg);
-  border: 2px solid var(--slate-border);
-  border-radius: 12px;
-  padding: 24px;
-  text-align: center;
-  transition: background-color 0.2s, border-color 0.2s;
-}
-.slate-info-row {
-  display: flex;
-  gap: 16px;
-  margin-bottom: 12px;
-}
-.slate-field {
   flex: 1;
   text-align: center;
 }
-.slate-field label {
-  display: block;
+
+/* === Traditional Slate === */
+.traditional-slate {
+  background: #1a1a2e;
+  border: 3px solid #e0c87a;
+  border-radius: 4px;
+  overflow: hidden;
+  box-shadow: 0 8px 32px rgba(0,0,0,0.4);
+}
+.slate-top-stripe {
+  background: #e0c87a;
+  padding: 6px 16px;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  position: relative;
+  height: 40px;
+}
+.slate-clapper {
+  position: relative;
+  width: 40px;
+  height: 28px;
+  flex-shrink: 0;
+}
+.clapper-top, .clapper-bottom {
+  position: absolute;
+  width: 100%;
+  height: 14px;
+  background: #2a2a2a;
+  border-radius: 2px;
+  transition: transform 0.15s;
+}
+.clapper-top {
+  top: 0;
+  transform: rotate(-6deg);
+  transform-origin: left center;
+  z-index: 1;
+}
+.clapper-bottom {
+  bottom: 0;
+  transform: rotate(4deg);
+  transform-origin: left center;
+}
+.slate-clapper.clapped .clapper-top {
+  transform: rotate(6deg);
+}
+.slate-clapper.clapped .clapper-bottom {
+  transform: rotate(-4deg);
+}
+.slate-top-text {
+  display: flex;
+  gap: 20px;
   font-size: 11px;
+  font-weight: 600;
+  color: #1a1a2e;
+  text-transform: uppercase;
+  letter-spacing: 1px;
+}
+.slate-top-text strong {
+  font-weight: 800;
+}
+.slate-body {
+  padding: 20px;
+  color: #fff;
+}
+.slate-main-row {
+  display: flex;
+  gap: 20px;
+  margin-bottom: 16px;
+}
+.slate-scene-take {
+  display: flex;
+  gap: 20px;
+  flex: 1;
+}
+.slate-field-block {
+  flex: 1;
+}
+.slate-field-label {
+  display: block;
+  font-size: 10px;
   text-transform: uppercase;
   letter-spacing: 2px;
-  color: var(--accent);
-  margin-bottom: 4px;
+  color: #e0c87a;
+  margin-bottom: 2px;
 }
-.slate-field span {
-  font-size: 24px;
+.slate-field-value {
+  font-size: 18px;
   font-weight: 700;
-  color: var(--slate-text);
+  color: #fff;
+  font-family: ui-monospace, monospace;
 }
-.slate-take-num {
-  font-size: 72px !important;
+.slate-scene-value {
+  font-size: 32px;
+}
+.slate-take-value {
+  font-size: 48px;
   line-height: 1;
 }
-.slate-description {
-  text-align: center;
-  font-size: 18px;
-  font-weight: 600;
-  color: var(--slate-text);
-  margin: 8px 0 16px;
+.slate-timecode-block {
+  text-align: right;
 }
-
-/* === Timecode === */
-.slate-timecode {
-  text-align: center;
-  margin: 16px 0;
-}
-.slate-timecode > label {
-  display: block;
-  font-size: 11px;
-  text-transform: uppercase;
+.slate-tc-display {
+  font-size: 28px;
+  font-weight: 800;
+  color: #e0c87a;
+  font-family: ui-monospace, monospace;
   letter-spacing: 2px;
-  color: var(--text-muted);
+  display: block;
   margin-bottom: 6px;
+}
+.slate-tc-controls {
+  display: flex;
+  gap: 4px;
+  justify-content: flex-end;
+  flex-wrap: wrap;
+}
+.slate-tc-controls .tc-input {
+  width: 120px;
+  font-family: ui-monospace, monospace;
+  text-align: center;
+  font-size: 12px;
+  padding: 2px 6px;
+}
+.slate-tc-controls .btn-sm {
+  font-size: 11px;
+  padding: 2px 8px;
+}
+.slate-desc {
+  font-size: 16px;
+  font-weight: 600;
+  color: #fff;
+  margin-bottom: 16px;
+  padding: 10px;
+  background: rgba(255,255,255,0.05);
+  border-radius: 4px;
+  line-height: 1.4;
+}
+.slate-info-grid {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px;
+}
+.slate-info-grid .slate-field-block {
+  flex: 0 0 auto;
+  min-width: 80px;
+}
+.slate-info-grid .slate-field-value {
+  font-size: 14px;
+}
+.slate-footer {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 10px 16px;
+  background: rgba(255,255,255,0.05);
+  border-top: 1px solid rgba(224,200,122,0.3);
+}
+.slate-user {
+  font-size: 12px;
+  color: #e0c87a;
+}
+.slate-take-actions {
+  display: flex;
+  gap: 8px;
+}
+.slate-take-actions .btn-good {
+  background: #2ecc71;
+  color: #fff;
+  border: none;
+  padding: 4px 14px;
+  border-radius: 4px;
+  font-size: 13px;
+  font-weight: 600;
+  cursor: pointer;
+}
+.slate-take-actions .btn-ng {
+  background: #e74c3c;
+  color: #fff;
+  border: none;
+  padding: 4px 14px;
+  border-radius: 4px;
+  font-size: 13px;
+  font-weight: 600;
+  cursor: pointer;
 }
 .tc-display {
   font-size: 36px;
@@ -546,26 +668,9 @@
   font-family: ui-monospace, monospace;
   text-align: center;
 }
-
-/* === Slate User Indicator === */
-.slate-user-indicator {
-  text-align: center;
-  font-size: 13px;
-  color: var(--text-muted);
-  margin-top: 12px;
-  padding-top: 12px;
-  border-top: 1px solid var(--slate-border);
-}
 .user-role {
   font-size: 12px;
   color: var(--text-dim);
-}
-
-.slate-actions {
-  display: flex;
-  gap: 12px;
-  justify-content: center;
-  margin: 16px 0;
 }
 
 .btn-good, .btn-ng {

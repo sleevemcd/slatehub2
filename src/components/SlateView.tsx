@@ -26,6 +26,7 @@ export function SlateView() {
   const [showCrewEditor, setShowCrewEditor] = useState(false)
   const [crewInput, setCrewInput] = useState('')
   const tcRef = useRef<number | null>(null)
+  const [clapped, setClapped] = useState(false)
 
   const shotTakes = takes.filter(t => t.shotRow === activeShot?.row)
 
@@ -41,6 +42,8 @@ export function SlateView() {
 
   const handleRecordTake = (good: boolean) => {
     recordTake(good)
+    setClapped(true)
+    setTimeout(() => setClapped(false), 200)
     setTcRunning(false)
     setTcFrames(0)
   }
@@ -84,73 +87,106 @@ export function SlateView() {
 
   const currentTc = tcRunning ? formatTimecode(tcFrames) : (state.timecode || '--:--:--:--')
   const isOnDeck = state.currentUser.role && (activeShot.crew || []).includes(state.currentUser.role)
+  const today = new Date().toLocaleDateString('en-US', { month: '2-digit', day: '2-digit', year: 'numeric' })
 
   return (
     <div className="slate-view">
-      <div className="slate-header">
-        <div className="slate-nav">
-          <button className="btn" onClick={goToPrevShot}>← Prev</button>
-          <span className="slate-title">Digital Slate — #{activeShot.shootOrder}</span>
-          <button className="btn" onClick={goToNextShot}>Next →</button>
-        </div>
-        <button className="btn btn-ghost" onClick={() => goToView('shots')}>Back to List</button>
+      <div className="slate-nav">
+        <button className="btn" onClick={goToPrevShot} title="Previous shot">←</button>
+        <span className="slate-title">Slate — #{activeShot.shootOrder}</span>
+        <button className="btn" onClick={goToNextShot} title="Next shot">→</button>
+        <button className="btn btn-ghost" onClick={() => goToView('shots')}>List</button>
       </div>
 
       {isOnDeck && (
         <div className="ondeck-banner">
           <span className="ondeck-icon">🎯</span>
-          <span>You're on deck! This shot needs <strong>{state.currentUser.role}</strong></span>
+          <span>You're on deck! Needs <strong>{state.currentUser.role}</strong></span>
         </div>
       )}
 
-      <div className="slate-card">
-        <div className="slate-display">
-          <div className="slate-info-row">
-            <div className="slate-field"><label>Scene</label><span>{activeShot.type}</span></div>
-            <div className="slate-field"><label>Take</label><span className="slate-take-num">{activeTake}</span></div>
+      <div className="traditional-slate">
+        <div className="slate-top-stripe">
+          <div className={`slate-clapper ${clapped ? 'clapped' : ''}`}>
+            <div className="clapper-top" />
+            <div className="clapper-bottom" />
           </div>
-          <div className="slate-description">{activeShot.description}</div>
-          {activeShot.location && (
-            <div className="slate-info-row">
-              <div className="slate-field"><label>Location</label><span>{activeShot.location}</span></div>
-              {activeShot.shootDay && (
-                <div className="slate-field"><label>Day</label><span>{activeShot.shootDay}</span></div>
-              )}
-            </div>
-          )}
-
-          <div className="slate-timecode">
-            <label>Timecode</label>
-            <div className="tc-display">{currentTc}</div>
-            <div className="tc-controls">
-              <input className="input tc-input" placeholder="HH:MM:SS:FF"
-                value={manualTc} onChange={e => setManualTc(e.target.value)} maxLength={11} />
-              <button className="btn btn-sm"
-                onClick={() => {
-                  if (manualTc) {
-                    dispatch({ type: 'SET_TIMECODE', timecode: manualTc })
-                    const parsed = parseTimecode(manualTc)
-                    if (parsed !== null) setTcFrames(parsed)
-                    setTcRunning(true)
-                    setManualTc('')
-                  }
-                }}
-                disabled={!manualTc}>Set</button>
-              <button className="btn btn-sm" onClick={() => setTcRunning(!tcRunning)}>
-                {tcRunning ? '■ Stop' : '▶ Run'}
-              </button>
-            </div>
-          </div>
-
-          <div className="slate-user-indicator">
-            User: <strong>{state.currentUser.name || 'Not set'}</strong>
-            {state.currentUser.role && <span className="user-role"> ({state.currentUser.role})</span>}
+          <div className="slate-top-text">
+            <span className="slate-prod">PROD: <strong>{activeShot.shootDay || '—'}</strong></span>
+            <span className="slate-roll">ROLL: <strong>{activeShot.setup || 'A'}</strong></span>
           </div>
         </div>
 
-        <div className="slate-actions">
-          <button className="btn btn-good" onClick={() => handleRecordTake(true)}>Good Take</button>
-          <button className="btn btn-ng" onClick={() => handleRecordTake(false)}>No Good</button>
+        <div className="slate-body">
+          <div className="slate-main-row">
+            <div className="slate-scene-take">
+              <div className="slate-field-block">
+                <span className="slate-field-label">SCENE</span>
+                <span className="slate-field-value slate-scene-value">{activeShot.type}</span>
+              </div>
+              <div className="slate-field-block">
+                <span className="slate-field-label">TAKE</span>
+                <span className="slate-field-value slate-take-value">{activeTake}</span>
+              </div>
+            </div>
+            <div className="slate-timecode-block">
+              <span className="slate-field-label">TIMECODE</span>
+              <span className="slate-tc-display">{currentTc}</span>
+              <div className="slate-tc-controls">
+                <input className="input tc-input" placeholder="HH:MM:SS:FF"
+                  value={manualTc} onChange={e => setManualTc(e.target.value)} maxLength={11} />
+                <button className="btn btn-sm"
+                  onClick={() => {
+                    if (manualTc) {
+                      dispatch({ type: 'SET_TIMECODE', timecode: manualTc })
+                      const parsed = parseTimecode(manualTc)
+                      if (parsed !== null) setTcFrames(parsed)
+                      setTcRunning(true)
+                      setManualTc('')
+                    }
+                  }}
+                  disabled={!manualTc}>Set</button>
+                <button className="btn btn-sm" onClick={() => setTcRunning(!tcRunning)}>
+                  {tcRunning ? '■ Stop' : '▶ Run'}
+                </button>
+              </div>
+            </div>
+          </div>
+
+          <div className="slate-desc">{activeShot.description}</div>
+
+          <div className="slate-info-grid">
+            <div className="slate-field-block">
+              <span className="slate-field-label">LOCATION</span>
+              <span className="slate-field-value">{activeShot.location || '—'}</span>
+            </div>
+            <div className="slate-field-block">
+              <span className="slate-field-label">CAM</span>
+              <span className="slate-field-value">{activeShot.setup || 'A'}</span>
+            </div>
+            <div className="slate-field-block">
+              <span className="slate-field-label">DATE</span>
+              <span className="slate-field-value">{today}</span>
+            </div>
+            <div className="slate-field-block">
+              <span className="slate-field-label">DAY</span>
+              <span className="slate-field-value">{activeShot.shootDay || '—'}</span>
+            </div>
+            {activeShot.subShot && (
+              <div className="slate-field-block">
+                <span className="slate-field-label">SUB</span>
+                <span className="slate-field-value">{activeShot.subShot}</span>
+              </div>
+            )}
+          </div>
+        </div>
+
+        <div className="slate-footer">
+          <div className="slate-user">{state.currentUser.name || 'Not set'}{state.currentUser.role ? ` (${state.currentUser.role})` : ''}</div>
+          <div className="slate-take-actions">
+            <button className="btn btn-good" onClick={() => handleRecordTake(true)}>✓ Good Take</button>
+            <button className="btn btn-ng" onClick={() => handleRecordTake(false)}>✗ No Good</button>
+          </div>
         </div>
       </div>
 

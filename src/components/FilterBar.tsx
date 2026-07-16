@@ -110,6 +110,17 @@ export function FilterBar() {
           {state.sortAsc ? '↑' : '↓'}
         </button>
 
+        <button className="btn-icon sort-btn"
+          onClick={() => {
+            dispatch({ type: 'SET_FILTER', key: 'type', value: '' })
+            dispatch({ type: 'SET_FILTER', key: 'location', value: '' })
+            dispatch({ type: 'SET_FILTER', key: 'status', value: '' })
+            dispatch({ type: 'SET_FILTER', key: 'crew', value: '' })
+            dispatch({ type: 'SET_FILTER', key: 'priority', value: '' })
+            dispatch({ type: 'SET_SEARCH', value: '' })
+          }}
+          title="Clear all filters">✕</button>
+
         <div className="layout-toggle">
           <button
             className={`layout-btn ${state.layout === 'grid' ? 'active' : ''}`}
