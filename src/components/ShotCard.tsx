@@ -51,6 +51,18 @@ export function ShotCard({ shot, takeCount, showRef, onSelect, onToggleDone, onS
     </span>
   ) : null
 
+  const prioritySelect = (
+    <select className="filter-select shot-priority-select"
+      value={shot.priority}
+      onChange={e => onSetPriority?.(shot.row, e.target.value)}
+      onClick={e => e.stopPropagation()}>
+      <option value="">Priority</option>
+      {PRIORITIES.map(p => (
+        <option key={p.value} value={p.value}>{p.label}</option>
+      ))}
+    </select>
+  )
+
   const startEditing = (e: React.MouseEvent) => {
     e.stopPropagation()
     setEditForm({
