@@ -1,4 +1,5 @@
 import type { ShotRecord, Layout } from '../types'
+import { PRIORITIES, getPriorityStyle } from '../types'
 import { getShotTypeInfo, getMediaTypeIcon } from '../utils/reference'
 
 interface ShotCardProps {
@@ -7,6 +8,7 @@ interface ShotCardProps {
   showRef: boolean
   onSelect: (shot: ShotRecord) => void
   onToggleDone: () => void
+  onSetPriority?: (row: number, priority: string) => void
   layout: Layout
 }
 
@@ -19,9 +21,10 @@ function CrewBadges({ crew }: { crew: string[] }) {
   )
 }
 
-export function ShotCard({ shot, takeCount, showRef, onSelect, onToggleDone, layout }: ShotCardProps) {
+export function ShotCard({ shot, takeCount, showRef, onSelect, onToggleDone, onSetPriority, layout }: ShotCardProps) {
   const info = getShotTypeInfo(shot.type)
   const mediaIcon = getMediaTypeIcon(shot.type)
+  const pri = getPriorityStyle(shot.priority)
 
   const typeDisplay = (
     <span className="shot-type-icon" title={`${info.fullName}: ${info.description}`}>
@@ -30,10 +33,29 @@ export function ShotCard({ shot, takeCount, showRef, onSelect, onToggleDone, lay
     </span>
   )
 
+  const priorityBadge = pri.color ? (
+    <span className="shot-priority-badge" style={{ backgroundColor: pri.color }} title={pri.label}>
+      {pri.label}
+    </span>
+  ) : null
+
+  const prioritySelect = (
+    <select className="filter-select shot-priority-select"
+      value={shot.priority}
+      onChange={e => onSetPriority?.(shot.row, e.target.value)}
+      onClick={e => e.stopPropagation()}>
+      <option value="">Priority</option>
+      {PRIORITIES.map(p => (
+        <option key={p.value} value={p.value}>{p.label}</option>
+      ))}
+    </select>
+  )
+
   if (layout === 'list') {
     return (
       <div className={`shot-card shot-card-list ${shot.done ? 'done' : ''}`}
-        onClick={() => onSelect(shot)}>
+        onClick={() => onSelect(shot)}
+        style={pri.color ? { borderLeftColor: pri.color } : undefined}>
         <div className="shot-order">{shot.shootOrder || '—'}</div>
         <div className="shot-info">
           {showRef ? (
@@ -45,11 +67,13 @@ export function ShotCard({ shot, takeCount, showRef, onSelect, onToggleDone, lay
             {typeDisplay}
             {shot.location && <span className="shot-location">{shot.location}</span>}
             {shot.shootDay && <span className="shot-day">Day {shot.shootDay}</span>}
+            {priorityBadge}
             <span className="shot-takes">{takeCount} take{takeCount !== 1 ? 's' : ''}</span>
             <CrewBadges crew={shot.crew} />
           </div>
         </div>
         <div className="shot-actions">
+          {prioritySelect}
           <label className="done-toggle" onClick={e => e.stopPropagation()}>
             <input type="checkbox" checked={shot.done} onChange={onToggleDone} />
             <span className="checkmark">{shot.done ? '✓' : ''}</span>
@@ -61,10 +85,12 @@ export function ShotCard({ shot, takeCount, showRef, onSelect, onToggleDone, lay
 
   return (
     <div className={`shot-card ${shot.done ? 'done' : ''}`}
-      onClick={() => onSelect(shot)}>
+      onClick={() => onSelect(shot)}
+      style={pri.color ? { borderLeftColor: pri.color } : undefined}>
       <div className="shot-card-header">
         <span className="shot-order">#{shot.shootOrder || '—'}</span>
         {shot.shootDay && <span className="shot-day">Day {shot.shootDay}</span>}
+        {priorityBadge}
         <label className="done-toggle" onClick={e => e.stopPropagation()}>
           <input type="checkbox" checked={shot.done} onChange={onToggleDone} />
           <span className="checkmark">{shot.done ? '✓' : ''}</span>
@@ -83,6 +109,7 @@ export function ShotCard({ shot, takeCount, showRef, onSelect, onToggleDone, lay
       </div>
       <div className="shot-card-footer">
         <span className="shot-takes">{takeCount} take{takeCount !== 1 ? 's' : ''}</span>
+        {prioritySelect}
       </div>
     </div>
   )

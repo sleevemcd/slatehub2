@@ -18,6 +18,7 @@ type Action =
   | { type: 'SET_SORT'; key: SortKey }
   | { type: 'TOGGLE_SORT_ASC' }
   | { type: 'TOGGLE_SHOT_DONE'; row: number }
+  | { type: 'SET_SHOT_PRIORITY'; row: number; priority: string }
   | { type: 'ADD_SHOT'; shot: ShotRecord }
   | { type: 'ADD_TAKE'; take: Take }
   | { type: 'MARK_TAKE_GOOD'; takeId: string; good: boolean }
@@ -131,7 +132,7 @@ const initialState: AppState = {
   notifications: [],
   loading: false,
   error: null,
-  filters: { type: '', location: '', status: '', search: '', crew: '' },
+  filters: { type: '', location: '', status: '', search: '', crew: '', priority: '' },
   sortKey: 'shootOrder',
   sortAsc: true,
   layout: 'grid',
@@ -165,6 +166,13 @@ function reducer(state: AppState, action: Action): AppState {
         ...state,
         shots: state.shots.map(s =>
           s.row === action.row ? { ...s, done: !s.done } : s
+        ),
+      }
+    case 'SET_SHOT_PRIORITY':
+      return {
+        ...state,
+        shots: state.shots.map(s =>
+          s.row === action.row ? { ...s, priority: action.priority } : s
         ),
       }
     case 'ADD_SHOT':
@@ -320,8 +328,9 @@ interface AppContextType {
   recordTake: (good: boolean) => void
   updateTake: (id: string, data: Partial<Take>) => void
   toggleDone: (row: number) => void
+  setShotPriority: (row: number, priority: string) => void
   toggleTheme: () => void
-  createProject: (name: string, sheetUrl: string, docUrl?: string, relayUrl?: string) => Promise<void>
+  createProject: (name: string, sheetUrl: string, docUrl?: string, relayUrl?: string, group?: string, groupColor?: string) => Promise<void>
   switchProject: (id: string) => Promise<void>
   deleteProject: (id: string) => void
   updateProject: (id: string, data: Partial<Project>) => void
@@ -361,10 +370,12 @@ export function AppProvider({ children }: { children: ReactNode }) {
     }
   }, [])
 
-  const createProject = useCallback(async (name: string, sheetUrl: string, docUrl = '', relayUrl = '') => {
+  const createProject = useCallback(async (name: string, sheetUrl: string, docUrl = '', relayUrl = '', group = '', groupColor = '#6366f1') => {
     const project: Project = {
       id: generateId(),
       name,
+      group,
+      groupColor,
       sheetUrl,
       docUrl,
       relayUrl,
@@ -441,6 +452,10 @@ export function AppProvider({ children }: { children: ReactNode }) {
 
   const toggleDone = useCallback((row: number) => {
     dispatch({ type: 'TOGGLE_SHOT_DONE', row })
+  }, [])
+
+  const setShotPriority = useCallback((row: number, priority: string) => {
+    dispatch({ type: 'SET_SHOT_PRIORITY', row, priority })
   }, [])
 
   const toggleTheme = useCallback(() => {
@@ -575,7 +590,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
   return (
     <AppContext.Provider value={{
       state, dispatch, loadShots, openSlate, closeSlate, goToView, goToNextShot, goToPrevShot,
-      recordTake, updateTake, toggleDone,
+      recordTake, updateTake, toggleDone, setShotPriority,
       toggleTheme, createProject, switchProject, deleteProject, updateProject, activeProject, login,
       updateShotCrew, addCrewMember, removeCrewMember, updateCrewMember,
       addNotification, markNotificationRead, clearNotifications, triggerOnDeck,

@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef, useCallback } from 'react'
+import { useState, useEffect, useRef, useCallback, useMemo } from 'react'
 import { useApp } from '../context/AppContext'
 import { docUrlToTxtUrl, fetchDocText, fetchTeleprompterState } from '../utils/sheet'
 
@@ -12,7 +12,8 @@ export function TeleprompterView() {
   const { state, dispatch } = useApp()
   const { teleprompter } = state
   const [text, setText] = useState('')
-  const [loading, setLoading] = useState(true)
+  const [initialLoading, setInitialLoading] = useState(true)
+  const [refreshing, setRefreshing] = useState(false)
   const [speed, setSpeed] = useState(state.teleprompterState.speed)
   const [playing, setPlaying] = useState(state.teleprompterState.playing)
   const [mirror, setMirror] = useState(false)
@@ -29,16 +30,23 @@ export function TeleprompterView() {
   const animRef = useRef<number>(0)
   const posRef = useRef(state.teleprompterState.scrollPosition)
   const pollingRef = useRef<ReturnType<typeof setInterval> | undefined>(undefined)
+  const playingRef = useRef(playing)
+  const speedRef = useRef(speed)
 
-  const fetchDoc = useCallback(async () => {
+  useEffect(() => { playingRef.current = playing }, [playing])
+  useEffect(() => { speedRef.current = speed }, [speed])
+
+  const fetchDoc = useCallback(async (showLoader = false) => {
     if (!teleprompter.docUrl) return
-    setLoading(true)
+    if (showLoader) setInitialLoading(true)
+    else setRefreshing(true)
     setDocError('')
     try {
       const txtUrl = docUrlToTxtUrl(teleprompter.docUrl)
       if (!txtUrl) {
         setDocError('Invalid Google Doc URL')
-        setLoading(false)
+        setInitialLoading(false)
+        setRefreshing(false)
         return
       }
       const content = await fetchDocText(txtUrl)
@@ -47,13 +55,14 @@ export function TeleprompterView() {
       const msg = e instanceof Error ? e.message : String(e)
       setDocError(msg)
     } finally {
-      setLoading(false)
+      setInitialLoading(false)
+      setRefreshing(false)
     }
   }, [teleprompter.docUrl])
 
   useEffect(() => {
-    fetchDoc()
-    const interval = setInterval(fetchDoc, 10000)
+    fetchDoc(true)
+    const interval = setInterval(() => fetchDoc(false), 10000)
     return () => clearInterval(interval)
   }, [fetchDoc])
 
@@ -65,8 +74,10 @@ export function TeleprompterView() {
     const remoteState = await fetchTeleprompterState(teleprompter.relayUrl, teleprompter.sessionId)
     if (remoteState) {
       setConnected(true)
-      if (remoteState.playing !== undefined) setPlaying(remoteState.playing)
-      if (remoteState.speed !== undefined) {
+      if (remoteState.playing !== undefined && remoteState.playing !== playingRef.current) {
+        setPlaying(remoteState.playing)
+      }
+      if (remoteState.speed !== undefined && remoteState.speed !== speedRef.current) {
         setSpeed(remoteState.speed)
         dispatch({ type: 'SET_TELEPROMPTER_STATE', state: { speed: remoteState.speed } })
       }
@@ -153,7 +164,9 @@ export function TeleprompterView() {
     dispatch({ type: 'SET_VIEW', view: 'teleprompter-setup' })
   }
 
-  if (loading) {
+  const lines = useMemo(() => text.split('\n'), [text])
+
+  if (initialLoading) {
     return (
       <div className="tp-view tp-loading">
         <div className="tp-loading-text">Loading script...</div>
@@ -182,13 +195,13 @@ export function TeleprompterView() {
       <div className="tp-controls">
         <div className="tp-controls-left">
           <button className="btn-icon tp-btn" onClick={goBack} title="Back">←</button>
-          <button className={`btn-icon tp-btn ${playing ? 'active' : ''}`} onClick={() => setPlaying(p => !p)} title="Play/Pause (Space)">
+          <button className={`btn-icon tp-btn ${playing ? 'active' : ''}`} onClick={() => setPlaying(p => !p)} title="Play (Space)">
             {playing ? '⏸' : '▶'}
           </button>
           <button className="btn-icon tp-btn" onClick={() => setMirror(m => !m)} title="Mirror flip">
             {mirror ? '↔' : '↕'}
           </button>
-          <button className="btn-icon tp-btn" onClick={fetchDoc} title="Reload doc">⟳</button>
+          <button className="btn-icon tp-btn" onClick={() => fetchDoc(false)} title="Reload doc">⟳</button>
           <button className={`btn-icon tp-btn ${showMarkerInput ? 'active' : ''}`}
             onClick={() => setShowMarkerInput(!showMarkerInput)} title="Add marker">
             📌
@@ -212,13 +225,14 @@ export function TeleprompterView() {
               {connected ? '●' : '○'}
             </span>
           )}
+          {refreshing && <span className="tp-refreshing" title="Refreshing script...">⋯</span>}
         </div>
       </div>
 
       <div className="tp-scroll-container" ref={scrollRef} onScroll={handleScroll}
         style={{ padding: `20px ${marginX}px` }}>
         <div className="tp-text" style={{ fontSize: `${fontSize}px`, lineHeight, fontFamily, maxWidth: `${maxWidth}px`, margin: '0 auto' }}>
-          {text.split('\n').map((line, i) => (
+          {lines.map((line, i) => (
             <p key={i} className={`tp-line ${line.trim() === '' ? 'tp-empty' : ''}`}>
               {line || '\u00A0'}
             </p>

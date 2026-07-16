@@ -17,7 +17,7 @@ function parseTimecode(tc: string): number | null {
 }
 
 export function SlateView() {
-  const { state, dispatch, goToView, goToNextShot, goToPrevShot, recordTake, updateTake, updateShotCrew, triggerOnDeck, addNotification } = useApp()
+  const { state, dispatch, goToView, goToNextShot, goToPrevShot, recordTake, updateTake, updateShotCrew, triggerOnDeck } = useApp()
   const { activeShot, takes, activeTake } = state
   const [notes, setNotes] = useState('')
   const [manualTc, setManualTc] = useState('')
@@ -190,33 +190,6 @@ export function SlateView() {
             Notify Crew
           </button>
         )}
-      </div>
-
-      <div className="slate-quick-msgs">
-        <div className="slate-quick-header">
-          <h3>Quick Message</h3>
-        </div>
-        <div className="slate-quick-grid">
-          {state.quickMessages.map(msg => (
-            <button key={msg} className="slate-quick-btn"
-              onClick={() => {
-                addNotification(`📢 ${state.currentUser.name}: ${msg}`)
-                const relayUrl = state.writeBackUrl || state.teleprompter.relayUrl
-                if (relayUrl) {
-                  fetch(relayUrl, {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({
-                      type: 'chat', message: msg, from: state.currentUser.name,
-                      timestamp: new Date().toISOString(),
-                    }),
-                  }).catch(() => {})
-                }
-              }}>
-              {msg}
-            </button>
-          ))}
-        </div>
       </div>
 
       <div className="take-log">

@@ -61,6 +61,7 @@ export function ScriptReview() {
         shootDay: '',
         shootOrder: String(state.shots.length + 1),
         done: false,
+        priority: '',
         crew: [],
       },
     })

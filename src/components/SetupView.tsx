@@ -55,7 +55,7 @@ export function SetupView() {
         <h3>Expected Shot List Columns</h3>
         <p>Your sheet headers should include any of these:</p>
         <div className="setup-columns">
-          {['type', 'description', 'sub shot', 'location', 'setup', 'notes', 'reference link', 'shoot day', 'shoot order', 'done y/n', 'scene', 'int/ext', 'day/night', 'shot size', 'camera move', 'priority'].map(col => (
+          {['type', 'description', 'sub shot', 'location', 'setup', 'notes', 'reference link', 'shoot day', 'shoot order', 'done y/n', 'priority', 'scene', 'int/ext', 'day/night', 'shot size', 'camera move'].map(col => (
             <span key={col} className="column-badge">{col}</span>
           ))}
         </div>

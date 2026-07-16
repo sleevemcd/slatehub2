@@ -4,7 +4,7 @@ import { FilterBar } from './FilterBar'
 import { ShotCard } from './ShotCard'
 
 export function ShotList() {
-  const { state, dispatch, openSlate, toggleDone } = useApp()
+  const { state, dispatch, openSlate, toggleDone, setShotPriority } = useApp()
 
   const { filtered, groups } = useMemo(() => {
     let result = [...state.shots]
@@ -15,6 +15,7 @@ export function ShotList() {
     if (status === 'done') result = result.filter(s => s.done)
     if (status === 'pending') result = result.filter(s => !s.done)
     if (state.filters.crew) result = result.filter(s => s.crew?.includes(state.filters.crew))
+    if (state.filters.priority) result = result.filter(s => s.priority === state.filters.priority)
     if (search) {
       const q = search.toLowerCase()
       result = result.filter(s =>
@@ -36,6 +37,7 @@ export function ShotList() {
         case 'location': cmp = a.location.localeCompare(b.location); break
         case 'description': cmp = a.description.localeCompare(b.description); break
         case 'shootDay': cmp = a.shootDay.localeCompare(b.shootDay); break
+        case 'priority': cmp = a.priority.localeCompare(b.priority); break
       }
       return sortAsc ? cmp : -cmp
     })
@@ -67,6 +69,7 @@ export function ShotList() {
       showRef={state.showRef}
       onSelect={openSlate}
       onToggleDone={() => toggleDone(shot.row)}
+      onSetPriority={setShotPriority}
       layout={state.layout}
     />
   )

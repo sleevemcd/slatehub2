@@ -2,11 +2,13 @@ import { useState } from 'react'
 import { useApp } from '../context/AppContext'
 
 export function CrewView() {
-  const { state, dispatch, addCrewMember, removeCrewMember, updateCrewMember, goToView } = useApp()
+  const { state, dispatch, addCrewMember, removeCrewMember, updateCrewMember, goToView, addNotification } = useApp()
   const [newName, setNewName] = useState('')
   const [newRole, setNewRole] = useState('')
   const [editName, setEditName] = useState<string | null>(null)
   const [editRole, setEditRole] = useState('')
+  const [recipient, setRecipient] = useState('')
+  const [customMsg, setCustomMsg] = useState('')
 
   const allRoles = [...new Set([
     ...state.crewMembers.map(m => m.role).filter(Boolean),
@@ -31,6 +33,25 @@ export function CrewView() {
     setNewName('')
     setNewRole('')
   }
+
+  const sendMessage = (msg: string) => {
+    const target = recipient || 'Everyone'
+    const full = `📢 To ${target}: ${state.currentUser.name} — ${msg}`
+    addNotification(full)
+    const relayUrl = state.writeBackUrl || state.teleprompter.relayUrl
+    if (relayUrl) {
+      fetch(relayUrl, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          type: 'chat', message: msg, from: state.currentUser.name,
+          to: target, timestamp: new Date().toISOString(),
+        }),
+      }).catch(() => {})
+    }
+  }
+
+  const activeCrew = state.crewMembers.filter(m => m.active)
 
   return (
     <div className="crew-view">
@@ -100,9 +121,36 @@ export function CrewView() {
         </div>
       )}
 
+      <div className="crew-chat-section">
+        <h3>Send Message</h3>
+        <div className="crew-chat-row">
+          <select className="filter-select crew-recipient-select"
+            value={recipient}
+            onChange={e => setRecipient(e.target.value)}>
+            <option value="">Everyone</option>
+            {activeCrew.filter(m => m.name !== state.currentUser.name).map(m => (
+              <option key={m.name} value={m.name}>{m.name} {m.role ? `(${m.role})` : ''}</option>
+            ))}
+          </select>
+          <input className="input crew-chat-input" placeholder="Type a message..."
+            value={customMsg}
+            onChange={e => setCustomMsg(e.target.value)}
+            onKeyDown={e => { if (e.key === 'Enter' && customMsg.trim()) { sendMessage(customMsg.trim()); setCustomMsg('') } }} />
+          <button className="btn btn-sm" onClick={() => { if (customMsg.trim()) { sendMessage(customMsg.trim()); setCustomMsg('') } }}
+            disabled={!customMsg.trim()}>Send</button>
+        </div>
+        <div className="crew-quick-msgs">
+          {state.quickMessages.filter(Boolean).map((msg, i) => (
+            <button key={i} className="slate-quick-btn" onClick={() => sendMessage(msg)}>
+              {msg}
+            </button>
+          ))}
+        </div>
+      </div>
+
       <div className="crew-msgs-section">
-        <h3>Quick Messages</h3>
-        <p className="crew-msgs-hint">These appear as one-tap buttons in the slate view.</p>
+        <h3>Configure Quick Messages</h3>
+        <p className="crew-msgs-hint">Edit the preset messages that appear as one-tap buttons above.</p>
         {state.quickMessages.map((msg, i) => (
           <div key={i} className="crew-msg-row">
             <input className="input" value={msg}

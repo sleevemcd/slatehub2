@@ -138,10 +138,30 @@ export function TeleprompterSetup() {
           For remote scroll, both devices need the <strong>same Session ID</strong> and the
           <strong>Relay URL</strong> from your deployed Apps Script.
         </p>
+
+        <h4 style={{ marginTop: 16 }}>What is the Relay URL?</h4>
         <p>
-          Deploy <code className="inline-code">apps-script/Code.gs</code> as a Web App to
-          enable the relay.
+          It's an HTTP endpoint (Google Apps Script Web App) that passes scroll/speed/play commands
+          between your display device and a phone/tablet acting as remote control.
         </p>
+
+        <h4 style={{ marginTop: 16 }}>How to set it up</h4>
+        <ol>
+          <li>Open the <code>apps-script/Code.gs</code> file from this project</li>
+          <li>In Google Sheets, go to <strong>Extensions → Apps Script</strong></li>
+          <li>Paste the code, save, and click <strong>Deploy → New deployment</strong></li>
+          <li>Choose <strong>Web app</strong>, set "Execute as: Me", "Who has access: Anyone"</li>
+          <li>Copy the deployment URL — that's your Relay URL</li>
+        </ol>
+
+        <h4 style={{ marginTop: 16 }}>How to test if it's working</h4>
+        <ul>
+          <li>Open the Teleprompter on your main device (Display mode)</li>
+          <li>Open the Remote Control on another phone/tablet (same session ID, same relay URL)</li>
+          <li>Drag the scroll bar on the remote — the display should follow</li>
+          <li>A green dot (●) shows when connected; a red dot (○) means no connection</li>
+          <li>If it's not working, check: both devices have the same Session ID and Relay URL, and the Apps Script is deployed as "Anyone" access</li>
+        </ul>
       </div>
     </div>
   )

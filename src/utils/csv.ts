@@ -66,6 +66,7 @@ export function rowsToShotRecords(headers: string[], rows: string[][]): ShotReco
       shootDay: get(row, ['shoot day', 'day', 'day']),
       shootOrder: get(row, ['shoot order', 'order', 'ord']),
       done: ['y', 'yes', 'true', '1', 'done', 'x'].includes(doneRaw.toLowerCase().trim()),
+      priority: get(row, ['priority', 'pri']),
       crew: [],
     }
   }).filter(s => s.type || s.description)

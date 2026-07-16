@@ -1,16 +1,19 @@
 import { useApp } from '../context/AppContext'
 import type { SortKey } from '../types'
+import { PRIORITIES } from '../types'
 
 const sortOptions: { key: SortKey; label: string }[] = [
   { key: 'shootOrder', label: 'Order' },
+  { key: 'priority', label: 'Priority' },
   { key: 'type', label: 'Type' },
   { key: 'location', label: 'Location' },
   { key: 'description', label: 'Description' },
   { key: 'shootDay', label: 'Day' },
 ]
 
-const groupOptions: { key: '' | 'type' | 'location' | 'shootDay'; label: string }[] = [
+const groupOptions: { key: '' | 'type' | 'location' | 'shootDay' | 'priority'; label: string }[] = [
   { key: '', label: 'No Group' },
+  { key: 'priority', label: 'By Priority' },
   { key: 'type', label: 'By Type' },
   { key: 'location', label: 'By Location' },
   { key: 'shootDay', label: 'By Day' },
@@ -74,6 +77,14 @@ export function FilterBar() {
             {crewRoles.map(r => <option key={r} value={r}>{r}</option>)}
           </select>
         )}
+
+        <select className="filter-select"
+          value={filters.priority}
+          onChange={e => dispatch({ type: 'SET_FILTER', key: 'priority', value: e.target.value })}
+        >
+          <option value="">All Priorities</option>
+          {PRIORITIES.map(p => <option key={p.value} value={p.value}>{p.label}</option>)}
+        </select>
 
         <select
           className="filter-select"

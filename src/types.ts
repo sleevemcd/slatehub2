@@ -1,6 +1,8 @@
 export interface Project {
   id: string
   name: string
+  group: string
+  groupColor: string
   sheetUrl: string
   docUrl: string
   relayUrl: string
@@ -35,6 +37,20 @@ export interface ShotRecord {
   shootOrder: string
   done: boolean
   crew: string[]
+  priority: string
+}
+
+export type Priority = 'must-have' | 'nice-to-have' | 'b-roll' | ''
+
+export const PRIORITIES: { value: Priority; label: string; color: string }[] = [
+  { value: 'must-have', label: 'Must-Have', color: '#e74c3c' },
+  { value: 'nice-to-have', label: 'Nice-to-Have', color: '#f39c12' },
+  { value: 'b-roll', label: 'B-Roll', color: '#7f8c8d' },
+]
+
+export function getPriorityStyle(priority: string): { label: string; color: string } {
+  const p = PRIORITIES.find(p => p.value === priority)
+  return p ? { label: p.label, color: p.color } : { label: '', color: '' }
 }
 
 export interface Take {
@@ -49,7 +65,7 @@ export interface Take {
   timecode: string
 }
 
-export type SortKey = 'shootOrder' | 'type' | 'location' | 'description' | 'shootDay'
+export type SortKey = 'shootOrder' | 'type' | 'location' | 'description' | 'shootDay' | 'priority'
 export type ViewState = 'setup' | 'shots' | 'slate' | 'dashboard' | 'crew' | 'teleprompter-setup' | 'teleprompter-view' | 'teleprompter-remote' | 'project-manager' | 'script-review'
 
 export interface TeleprompterConfig {
@@ -75,7 +91,7 @@ export interface TeleprompterState {
 export type Theme = 'dark' | 'light'
 
 export type Layout = 'grid' | 'list'
-export type GroupBy = '' | 'type' | 'location' | 'shootDay'
+export type GroupBy = '' | 'type' | 'location' | 'shootDay' | 'priority'
 
 export interface User {
   name: string
@@ -104,6 +120,7 @@ export interface AppState {
     status: '' | 'done' | 'pending'
     search: string
     crew: string
+    priority: string
   }
   sortKey: SortKey
   sortAsc: boolean

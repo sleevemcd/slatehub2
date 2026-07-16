@@ -2557,6 +2557,120 @@
   transform: translateY(-50%) scale(1.2);
 }
 
+/* === Priority === */
+.shot-priority-badge {
+  display: inline-block;
+  padding: 1px 8px;
+  border-radius: 3px;
+  font-size: 10px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  color: #fff;
+  line-height: 1.6;
+}
+.shot-priority-select {
+  font-size: 11px;
+  padding: 1px 4px;
+  max-width: 100px;
+}
+.shot-priority-select option {
+  font-size: 11px;
+}
+.shot-card-list {
+  border-left: 3px solid transparent;
+}
+.shot-card-list .shot-actions {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+/* === Project Groups === */
+.project-group-dot {
+  display: inline-block;
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  margin-right: 6px;
+  flex-shrink: 0;
+}
+.project-group-tag {
+  font-size: 11px;
+  font-weight: 600;
+  opacity: 0.8;
+}
+.project-group-filter {
+  margin-bottom: 12px;
+}
+.project-group-filter .filter-select {
+  font-size: 13px;
+  padding: 4px 8px;
+}
+.color-picker-wrap {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  margin-left: 8px;
+}
+.color-picker {
+  width: 32px;
+  height: 32px;
+  border: none;
+  border-radius: 4px;
+  cursor: pointer;
+  padding: 0;
+  background: none;
+}
+.color-hex {
+  font-family: monospace;
+  font-size: 12px;
+  color: var(--text-dim);
+}
+
+/* === Crew Chat === */
+.crew-chat-section {
+  margin-top: 20px;
+  padding: 16px;
+  background: var(--bg-card);
+  border-radius: 8px;
+}
+.crew-chat-section h3 {
+  font-size: 16px;
+  margin: 0 0 8px;
+}
+.crew-chat-row {
+  display: flex;
+  gap: 8px;
+  margin-bottom: 8px;
+}
+.crew-recipient-select {
+  flex: 0 0 160px;
+}
+.crew-chat-input {
+  flex: 1;
+}
+.crew-quick-msgs {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+}
+.slate-quick-btn {
+  font-size: 12px;
+  padding: 4px 10px;
+  background: var(--bg-tag);
+  border: 1px solid var(--border-light);
+  border-radius: 16px;
+  cursor: pointer;
+  color: var(--text-primary);
+  white-space: nowrap;
+}
+.slate-quick-btn:hover {
+  background: var(--accent);
+  color: #fff;
+  border-color: var(--accent);
+}
+
 /* === Scrollbar === */
 ::-webkit-scrollbar { width: 8px; }
 ::-webkit-scrollbar-track { background: var(--bg-body); }
