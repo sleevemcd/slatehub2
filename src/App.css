@@ -701,43 +701,45 @@
 }
 .slate-top-stripe {
   background: #e0c87a;
-  padding: 6px 16px;
+  padding: 4px 16px;
   display: flex;
   align-items: center;
-  gap: 12px;
+  gap: 16px;
   position: relative;
-  height: 40px;
+  height: 64px;
 }
 .slate-clapper {
   position: relative;
-  width: 40px;
-  height: 28px;
+  width: 80px;
+  height: 56px;
   flex-shrink: 0;
+  cursor: pointer;
 }
 .clapper-top, .clapper-bottom {
   position: absolute;
   width: 100%;
-  height: 14px;
-  background: #2a2a2a;
-  border-radius: 2px;
-  transition: transform 0.15s;
+  height: 28px;
+  background: linear-gradient(135deg, #2a2a2a 0%, #444 100%);
+  border-radius: 3px;
+  transition: transform 0.08s;
+  box-shadow: 0 1px 3px rgba(0,0,0,0.3);
 }
 .clapper-top {
   top: 0;
-  transform: rotate(-6deg);
+  transform: rotate(-8deg);
   transform-origin: left center;
   z-index: 1;
 }
 .clapper-bottom {
   bottom: 0;
-  transform: rotate(4deg);
+  transform: rotate(6deg);
   transform-origin: left center;
 }
 .slate-clapper.clapped .clapper-top {
-  transform: rotate(6deg);
+  transform: rotate(8deg);
 }
 .slate-clapper.clapped .clapper-bottom {
-  transform: rotate(-4deg);
+  transform: rotate(-6deg);
 }
 .slate-top-text {
   display: flex;

@@ -132,7 +132,9 @@ export function SlateView() {
 
       <div className="traditional-slate">
         <div className="slate-top-stripe">
-          <div className={`slate-clapper ${clapped ? 'clapped' : ''}`}>
+          <div className={`slate-clapper ${clapped ? 'clapped' : ''}`}
+            onClick={() => { setClapped(true); playClap(); setTimeout(() => setClapped(false), 200) }}
+            title="Tap to clap">
             <div className="clapper-top" />
             <div className="clapper-bottom" />
           </div>
