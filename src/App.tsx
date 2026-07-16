@@ -11,6 +11,7 @@ import { ProjectManager } from './components/ProjectManager'
 import { CrewView } from './components/CrewView'
 import { LoginView } from './components/LoginView'
 import { ScriptReview } from './components/ScriptReview'
+import { ShootSchedule } from './components/ShootSchedule'
 import './App.css'
 
 function AppContent() {
@@ -37,6 +38,7 @@ function AppContent() {
         {state.view === 'teleprompter-setup' && <TeleprompterSetup />}
         {state.view === 'teleprompter-view' && <TeleprompterView />}
         {state.view === 'teleprompter-remote' && <TeleprompterRemote />}
+        {state.view === 'shoot-schedule' && <ShootSchedule />}
         {state.view === 'script-review' && <ScriptReview />}
       </main>
     </div>

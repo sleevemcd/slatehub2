@@ -29,6 +29,8 @@ export function Header() {
       <nav className="header-nav">
         <button className={`nav-btn ${state.view === 'shots' ? 'active' : ''}`}
           onClick={() => goToView('shots')}>Shots</button>
+        <button className={`nav-btn ${state.view === 'shoot-schedule' ? 'active' : ''}`}
+          onClick={() => goToView('shoot-schedule')}>Schedule</button>
         <button className={`nav-btn ${state.view === 'slate' ? 'active' : ''}`}
           onClick={() => goToView('slate')}>Slate</button>
         <button className={`nav-btn ${state.view === 'crew' ? 'active' : ''}`}
