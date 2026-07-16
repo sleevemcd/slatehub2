@@ -1,12 +1,35 @@
-import { useState, useEffect, useCallback } from 'react'
+import { useState, useEffect, useCallback, useMemo } from 'react'
 import { useApp } from '../context/AppContext'
-import { docUrlToTxtUrl, fetchDocText } from '../utils/sheet'
+import { docUrlToTxtUrl } from '../utils/sheet'
 
 let nextRow = 1000
 
+function extractDocBody(html: string): string {
+  const bodyMatch = html.match(/<body[^>]*>([\s\S]*?)<\/body>/i)
+  if (!bodyMatch) return ''
+  let content = bodyMatch[1]
+  content = content.replace(/<style[^>]*>[\s\S]*?<\/style>/gi, '')
+  content = content.replace(/<meta[^>]*>/gi, '')
+  content = content.replace(/<title[^>]*>[\s\S]*?<\/title>/gi, '')
+  content = content.replace(/<span[^>]*>/gi, '<span>')
+  return content
+}
+
+function wrapParagraphs(html: string): string[] {
+  const div = document.createElement('div')
+  div.innerHTML = html
+  const blocks: string[] = []
+  for (const child of div.children) {
+    if (child.tagName === 'P' || child.tagName === 'H1' || child.tagName === 'H2' || child.tagName === 'H3' || child.tagName === 'H4') {
+      blocks.push(child.outerHTML)
+    }
+  }
+  return blocks
+}
+
 export function ScriptReview() {
   const { state, dispatch, activeProject } = useApp()
-  const [text, setText] = useState('')
+  const [rawHtml, setRawHtml] = useState('')
   const [loading, setLoading] = useState(false)
   const [docUrl, setDocUrl] = useState(activeProject?.docUrl || '')
   const [selection, setSelection] = useState('')
@@ -16,12 +39,21 @@ export function ScriptReview() {
     try {
       const txtUrl = docUrlToTxtUrl(url)
       if (!txtUrl) return
-      const content = await fetchDocText(txtUrl)
-      setText(content)
+      const htmlUrl = txtUrl.replace('export?format=txt', 'export?format=html')
+      const res = await fetch(htmlUrl, { cache: 'no-cache' })
+      if (!res.ok) return
+      const html = await res.text()
+      const body = extractDocBody(html)
+      setRawHtml(body)
     } catch { } finally {
       setLoading(false)
     }
   }, [])
+
+  const paragraphs = useMemo(() => {
+    if (!rawHtml) return []
+    return wrapParagraphs(rawHtml)
+  }, [rawHtml])
 
   useEffect(() => {
     if (activeProject?.docUrl) {
@@ -69,8 +101,6 @@ export function ScriptReview() {
     setSelection('')
   }
 
-  const paragraphs = text.split('\n').filter(p => p.trim())
-
   return (
     <div className="script-review">
       <div className="script-review-header">
@@ -102,7 +132,7 @@ export function ScriptReview() {
       )}
 
       <div className="script-content" onMouseUp={handleSelection}>
-        {!text && !loading && (
+        {!rawHtml && !loading && (
           <div className="empty-state">
             <p>Enter a published Google Doc URL and click Load Script.</p>
             <p className="empty-hint">Go to File → Share → Publish to web in your Google Doc first.</p>
@@ -112,8 +142,8 @@ export function ScriptReview() {
         {paragraphs.map((p, i) => (
           <div key={i} className="script-paragraph" data-paragraph={i + 1}>
             <span className="script-paragraph-num">{i + 1}</span>
-            <button className="script-add-shot" title="Add to shot list" onClick={() => addShot(p)}>+</button>
-            <p>{p}</p>
+            <button className="script-add-shot" title="Add to shot list" onClick={() => addShot(p.replace(/<[^>]*>/g, ''))}>+</button>
+            <div className="script-para-content" dangerouslySetInnerHTML={{ __html: p }} />
           </div>
         ))}
       </div>

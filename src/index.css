@@ -1,9 +1,9 @@
 :root {
-  --bg-body: #0f0f23;
+  --bg-body: #0a0a1a;
   --bg-surface: #1a1a2e;
   --bg-elevated: #1e1e32;
   --bg-input: #16162a;
-  --bg-hover: rgba(245, 197, 66, 0.1);
+  --bg-hover: rgba(245, 197, 66, 0.08);
   --bg-tag: #2a2a4a;
   --bg-progress: #2e2e4a;
   --text-primary: #f3f4f6;
@@ -14,7 +14,7 @@
   --border-light: #3a3a5a;
   --accent: #f5c542;
   --accent-hover: #e0b432;
-  --accent-dim: rgba(245, 197, 66, 0.15);
+  --accent-dim: rgba(245, 197, 66, 0.12);
   --danger: #f44336;
   --danger-bg: rgba(239, 68, 68, 0.1);
   --danger-border: rgba(239, 68, 68, 0.3);
@@ -24,7 +24,7 @@
   --success-bg2: rgba(76, 175, 80, 0.15);
   --warning: #ff9800;
   --info: #93c5fd;
-  --header-bg: #1a1a2e;
+  --header-bg: rgba(26, 26, 46, 0.92);
   --header-border: #f5c542;
   --badge-audio-bg: #1e3a5f;
   --badge-audio-text: #93c5fd;
@@ -32,7 +32,7 @@
   --badge-pickup-text: #fdba74;
   --badge-scene-bg: #2a1e3a;
   --badge-scene-text: #c4b5fd;
-  --shadow: rgba(0, 0, 0, 0.3);
+  --shadow: rgba(0, 0, 0, 0.4);
   --code-bg: #2a2a4a;
   --code-text: #c4b5fd;
   --slate-bg: #111;
@@ -91,12 +91,14 @@
 body {
   font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
   background: var(--bg-body);
+  background-image: radial-gradient(ellipse at 30% 20%, rgba(245, 197, 66, 0.03) 0%, transparent 60%),
+                    radial-gradient(ellipse at 70% 80%, rgba(147, 197, 253, 0.03) 0%, transparent 60%);
   color: var(--text-muted);
   font-size: 15px;
-  line-height: 1.5;
+  line-height: 1.6;
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
-  transition: background-color 0.2s, color 0.2s;
+  transition: background-color 0.3s, color 0.3s;
 }
 
 #root {
