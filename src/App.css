@@ -347,6 +347,34 @@
   gap: 8px;
 }
 
+.shot-tag {
+  display: inline-block;
+  padding: 1px 6px;
+  border-radius: 3px;
+  font-size: 11px;
+  font-weight: 600;
+  line-height: 1.5;
+  white-space: nowrap;
+}
+.shot-tag-graphic {
+  background: rgba(147, 197, 253, 0.15);
+  color: #93c5fd;
+}
+.shot-tag-effect {
+  background: rgba(251, 191, 36, 0.15);
+  color: #fbbf24;
+}
+.shot-tag-title {
+  background: rgba(167, 139, 250, 0.15);
+  color: #a78bfa;
+}
+.shot-title-overlay {
+  font-size: 14px;
+  font-weight: 600;
+  color: #a78bfa;
+  margin: 4px 0;
+}
+
 /* === Bulk Action Bar === */
 .bulk-bar {
   display: flex;

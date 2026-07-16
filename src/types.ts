@@ -38,6 +38,9 @@ export interface ShotRecord {
   done: boolean
   crew: string[]
   priority: string
+  graphic: string
+  title: string
+  effect: string
 }
 
 export type Priority = 'must-have' | 'nice-to-have' | 'b-roll' | ''

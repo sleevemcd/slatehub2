@@ -62,6 +62,9 @@ export function ShotCard({ shot, takeCount, showRef, onSelect, onToggleDone, onS
       shootOrder: shot.shootOrder,
       notes: shot.notes,
       subShot: shot.subShot,
+      graphic: shot.graphic,
+      title: shot.title,
+      effect: shot.effect,
     })
     setEditing(true)
   }
@@ -144,6 +147,23 @@ export function ShotCard({ shot, takeCount, showRef, onSelect, onToggleDone, onS
             onChange={e => setEditForm(f => ({ ...f, subShot: e.target.value }))} />
         </div>
       </div>
+      <div className="shot-edit-row">
+        <div className="shot-edit-field">
+          <label>Graphic</label>
+          <input className="input" placeholder="Lower Third, Full Screen, etc." value={editForm.graphic || ''}
+            onChange={e => setEditForm(f => ({ ...f, graphic: e.target.value }))} />
+        </div>
+        <div className="shot-edit-field">
+          <label>Effect</label>
+          <input className="input" placeholder="Fade, Wipe, etc." value={editForm.effect || ''}
+            onChange={e => setEditForm(f => ({ ...f, effect: e.target.value }))} />
+        </div>
+      </div>
+      <div className="shot-edit-field">
+        <label>Title / Overlay Text</label>
+        <input className="input" value={editForm.title || ''}
+          onChange={e => setEditForm(f => ({ ...f, title: e.target.value }))} />
+      </div>
       <div className="shot-edit-field">
         <label>Notes</label>
         <textarea className="input shot-edit-textarea" value={editForm.notes || ''}
@@ -185,6 +205,9 @@ export function ShotCard({ shot, takeCount, showRef, onSelect, onToggleDone, onS
               {typeDisplay}
               {shot.location && <span className="shot-location">{shot.location}</span>}
               {shot.shootDay && <span className="shot-day">Day {shot.shootDay}</span>}
+              {shot.graphic && <span className="shot-tag shot-tag-graphic">🎨 {shot.graphic}</span>}
+              {shot.effect && <span className="shot-tag shot-tag-effect">⚡ {shot.effect}</span>}
+              {shot.title && <span className="shot-tag shot-tag-title">📝 {shot.title}</span>}
               {priorityBadge}
               <span className="shot-takes">{takeCount} take{takeCount !== 1 ? 's' : ''}</span>
               <CrewBadges crew={shot.crew} />
@@ -203,6 +226,8 @@ export function ShotCard({ shot, takeCount, showRef, onSelect, onToggleDone, onS
           <div className="shot-card-header">
             <span className="shot-order">#{shot.shootOrder || '—'}</span>
             {shot.shootDay && <span className="shot-day">Day {shot.shootDay}</span>}
+            {shot.graphic && <span className="shot-tag shot-tag-graphic">🎨 {shot.graphic}</span>}
+            {shot.effect && <span className="shot-tag shot-tag-effect">⚡ {shot.effect}</span>}
             {priorityBadge}
             <label className="done-toggle" onClick={e => e.stopPropagation()}>
               <input type="checkbox" checked={shot.done} onChange={onToggleDone} />
@@ -217,6 +242,7 @@ export function ShotCard({ shot, takeCount, showRef, onSelect, onToggleDone, onS
             ) : (
               <p className="shot-description">{shot.description}</p>
             )}
+            {shot.title && <p className="shot-title-overlay">📝 {shot.title}</p>}
             {shot.notes && <p className="shot-notes">{shot.notes}</p>}
             <CrewBadges crew={shot.crew} />
           </div>

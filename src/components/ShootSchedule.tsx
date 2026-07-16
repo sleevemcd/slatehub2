@@ -112,6 +112,9 @@ export function ShootSchedule() {
                       <div className="schedule-shot-meta">
                         {shot.location && <span className="meta-location">{shot.location}</span>}
                         {shot.setup && <span className="meta-setup">Cam {shot.setup}</span>}
+                        {shot.graphic && <span className="meta-graphic">🎨 {shot.graphic}</span>}
+                        {shot.effect && <span className="meta-effect">⚡ {shot.effect}</span>}
+                        {shot.title && <span className="meta-title">📝 {shot.title}</span>}
                         {shot.subShot && <span className="meta-sub">{shot.subShot}</span>}
                         {shot.crew && shot.crew.length > 0 && (
                           <span className="meta-crew">{shot.crew.join(', ')}</span>

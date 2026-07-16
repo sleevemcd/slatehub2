@@ -94,6 +94,9 @@ export function ScriptReview() {
         shootOrder: String(state.shots.length + 1),
         done: false,
         priority: '',
+        graphic: '',
+        title: '',
+        effect: '',
         crew: [],
       },
     })
