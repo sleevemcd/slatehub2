@@ -5,6 +5,7 @@ export function Header() {
   const { state, dispatch, goToView, toggleTheme, activeProject } = useApp()
   const [showUser, setShowUser] = useState(false)
   const [showNotif, setShowNotif] = useState(false)
+  const [showMenu, setShowMenu] = useState(false)
 
   const unread = state.notifications.filter(n => !n.read).length
 
@@ -16,6 +17,9 @@ export function Header() {
   return (
     <header className="app-header">
       <div className="header-left">
+        <button className="hamburger" onClick={() => setShowMenu(s => !s)} aria-label="Menu">
+          <span className={`hamburger-line ${showMenu ? 'open' : ''}`} />
+        </button>
         <h1 className="header-title" onClick={() => goToView('project-manager')}>
           🎬 SlateHub
         </h1>
@@ -26,23 +30,23 @@ export function Header() {
         )}
       </div>
 
-      <nav className="header-nav">
+      <nav className={`header-nav ${showMenu ? 'open' : ''}`}>
         <button className={`nav-btn ${state.view === 'shots' ? 'active' : ''}`}
-          onClick={() => goToView('shots')}>Shots</button>
+          onClick={() => { goToView('shots'); setShowMenu(false) }}>Shots</button>
         <button className={`nav-btn ${state.view === 'shoot-schedule' ? 'active' : ''}`}
-          onClick={() => goToView('shoot-schedule')}>Schedule</button>
+          onClick={() => { goToView('shoot-schedule'); setShowMenu(false) }}>Schedule</button>
         <button className={`nav-btn ${state.view === 'slate' ? 'active' : ''}`}
-          onClick={() => goToView('slate')}>Slate</button>
+          onClick={() => { goToView('slate'); setShowMenu(false) }}>Slate</button>
         <button className={`nav-btn ${state.view === 'crew' ? 'active' : ''}`}
-          onClick={() => goToView('crew')}>Crew</button>
+          onClick={() => { goToView('crew'); setShowMenu(false) }}>Crew</button>
         {activeProject?.docUrl && (
           <button className={`nav-btn ${state.view.startsWith('teleprompter') ? 'active' : ''}`}
-            onClick={() => goToView('teleprompter-setup')}>Prompt</button>
+            onClick={() => { goToView('teleprompter-setup'); setShowMenu(false) }}>Prompt</button>
         )}
         <button className={`nav-btn ${state.view === 'script-review' ? 'active' : ''}`}
-          onClick={() => goToView('script-review')}>Script</button>
+          onClick={() => { goToView('script-review'); setShowMenu(false) }}>Script</button>
         <button className={`nav-btn ${state.view === 'dashboard' ? 'active' : ''}`}
-          onClick={() => goToView('dashboard')}>Dashboard</button>
+          onClick={() => { goToView('dashboard'); setShowMenu(false) }}>Dashboard</button>
       </nav>
 
       <div className="header-right">
