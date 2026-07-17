@@ -62,6 +62,8 @@ export function ShotCard({ shot, takeCount, showRef, onSelect, onToggleDone, onS
     </select>
   )
 
+  const shotNum = shot.shootOrder || String(shot.row)
+
   const startEditing = (e: React.MouseEvent) => {
     e.stopPropagation()
     setEditForm({
@@ -78,6 +80,8 @@ export function ShotCard({ shot, takeCount, showRef, onSelect, onToggleDone, onS
       effect: shot.effect,
       referenceLink: shot.referenceLink,
       duration: shot.duration,
+      roll: shot.roll,
+      scene: shot.scene,
     })
     setEditing(true)
   }
@@ -189,6 +193,18 @@ export function ShotCard({ shot, takeCount, showRef, onSelect, onToggleDone, onS
         <input className="input" value={editForm.title || ''}
           onChange={e => setEditForm(f => ({ ...f, title: e.target.value }))} />
       </div>
+      <div className="shot-edit-row">
+        <div className="shot-edit-field">
+          <label>Roll</label>
+          <input className="input" placeholder="e.g. 1, A" value={editForm.roll || ''}
+            onChange={e => setEditForm(f => ({ ...f, roll: e.target.value }))} />
+        </div>
+        <div className="shot-edit-field">
+          <label>Scene</label>
+          <input className="input" placeholder="e.g. 1, 1A" value={editForm.scene || ''}
+            onChange={e => setEditForm(f => ({ ...f, scene: e.target.value }))} />
+        </div>
+      </div>
       <div className="shot-edit-field">
         <label>Notes</label>
         <textarea className="input shot-edit-textarea" value={editForm.notes || ''}
@@ -219,7 +235,7 @@ export function ShotCard({ shot, takeCount, showRef, onSelect, onToggleDone, onS
       <div className="shot-edit-btn" onClick={startEditing} title="Edit fields">✎</div>
       {layout === 'list' ? (
         <>
-          <div className="shot-order">{shot.shootOrder || '—'}</div>
+          <div className="shot-order">{'#' + shotNum}</div>
           <div className="shot-info">
             {showRef ? (
               <div className="shot-ref-text">{info.fullName}: {info.description}</div>
@@ -250,7 +266,7 @@ export function ShotCard({ shot, takeCount, showRef, onSelect, onToggleDone, onS
       ) : (
         <>
           <div className="shot-card-header">
-            <span className="shot-order">#{shot.shootOrder || '—'}</span>
+            <span className="shot-order">#{shotNum}</span>
             {shot.shootDay && <span className="shot-day">Day {shot.shootDay}</span>}
             {shot.graphic && <span className="shot-tag shot-tag-graphic">🎨 {shot.graphic}</span>}
             {shot.effect && <span className="shot-tag shot-tag-effect">⚡ {shot.effect}</span>}

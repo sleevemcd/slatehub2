@@ -2211,6 +2211,22 @@
   padding: 1px 6px;
   border-radius: 4px;
 }
+.shot-takes {
+  font-size: 11px;
+  color: var(--text-muted);
+  white-space: nowrap;
+}
+.shot-card-list .shot-takes {
+  background: var(--bg-tag);
+  padding: 1px 6px;
+  border-radius: 4px;
+  font-size: 11px;
+  color: var(--text-muted);
+}
+.shot-takes + .shot-priority-badge,
+.shot-takes + * + .shot-priority-badge {
+  margin-left: 4px;
+}
 .shot-card-list .shot-actions {
   flex-shrink: 0;
   display: flex;
@@ -3507,7 +3523,11 @@ mark.script-hl {
   color: var(--accent);
   text-transform: uppercase;
   letter-spacing: 1px;
-  margin: 0;
+  font-style: italic;
+}
+.schedule-day-title::before {
+  content: '📅 ';
+  font-style: normal;
 }
 .schedule-day-stats {
   display: flex;

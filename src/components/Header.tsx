@@ -41,7 +41,7 @@ export function Header() {
           onClick={() => { goToView('crew'); setShowMenu(false) }}>Crew</button>
         {activeProject?.docUrl && (
           <button className={`nav-btn ${state.view.startsWith('teleprompter') ? 'active' : ''}`}
-            onClick={() => { goToView('teleprompter-setup'); setShowMenu(false) }}>Prompt</button>
+            onClick={() => { goToView('teleprompter-setup'); setShowMenu(false) }}>Prompter</button>
         )}
         <button className={`nav-btn ${state.view === 'script-review' ? 'active' : ''}`}
           onClick={() => { goToView('script-review'); setShowMenu(false) }}>Script</button>

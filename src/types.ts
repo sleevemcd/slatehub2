@@ -42,6 +42,8 @@ export interface ShotRecord {
   title: string
   effect: string
   duration: string
+  roll: string
+  scene: string
 }
 
 export type Priority = 'must-have' | 'nice-to-have' | 'b-roll' | ''

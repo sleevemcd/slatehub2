@@ -41,7 +41,7 @@ function parseTimecode(tc: string): number | null {
 }
 
 export function SlateView() {
-  const { state, dispatch, goToView, goToNextShot, goToPrevShot, recordTake, updateTake, updateShotCrew, triggerOnDeck } = useApp()
+  const { state, dispatch, goToView, goToNextShot, goToPrevShot, recordTake, updateTake, updateShotCrew, triggerOnDeck, activeProject } = useApp()
   const { activeShot, takes, activeTake } = state
   const [notes, setNotes] = useState('')
   const [manualTc, setManualTc] = useState('')
@@ -118,7 +118,7 @@ export function SlateView() {
     <div className="slate-view">
       <div className="slate-nav">
         <button className="btn" onClick={goToPrevShot} title="Previous shot">←</button>
-        <span className="slate-title">Slate — #{activeShot.shootOrder}</span>
+        <span className="slate-title">Slate — {activeShot.description || activeShot.type || `#${activeShot.shootOrder || activeShot.row}`}</span>
         <button className="btn" onClick={goToNextShot} title="Next shot">→</button>
         <button className="btn btn-ghost" onClick={() => goToView('shots')}>List</button>
       </div>
@@ -139,8 +139,8 @@ export function SlateView() {
             <div className="clapper-bottom" />
           </div>
           <div className="slate-top-text">
-            <span className="slate-prod">PROD: <strong>{activeShot.shootDay || '—'}</strong></span>
-            <span className="slate-roll">ROLL: <strong>{activeShot.setup || 'A'}</strong></span>
+            <span className="slate-prod">PROD: <strong>{activeProject?.name || activeShot.shootDay || '—'}</strong></span>
+            <span className="slate-roll">CAM ROLL: <strong>{activeShot.roll || activeShot.setup || 'A'}</strong></span>
           </div>
         </div>
 
@@ -149,7 +149,7 @@ export function SlateView() {
             <div className="slate-scene-take">
               <div className="slate-field-block">
                 <span className="slate-field-label">SCENE</span>
-                <span className="slate-field-value slate-scene-value">{activeShot.type}</span>
+                <span className="slate-field-value slate-scene-value">{activeShot.scene || activeShot.type || '—'}</span>
               </div>
               <div className="slate-field-block">
                 <span className="slate-field-label">TAKE</span>
@@ -198,6 +198,10 @@ export function SlateView() {
             <div className="slate-field-block">
               <span className="slate-field-label">DAY</span>
               <span className="slate-field-value">{activeShot.shootDay || '—'}</span>
+            </div>
+            <div className="slate-field-block">
+              <span className="slate-field-label">RIG</span>
+              <span className="slate-field-value">{activeShot.setup || '—'}</span>
             </div>
             {activeShot.subShot && (
               <div className="slate-field-block">

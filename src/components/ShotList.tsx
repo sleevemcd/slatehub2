@@ -166,10 +166,10 @@ export function ShotList() {
             onClick={() => { setSelectMode(!selectMode); clearSelection() }}>
             {selectMode ? 'Done' : 'Select'}
           </button>
-          <label className="ref-toggle" title="Show shot type reference instead of description">
+          <label className="ref-toggle" title="Reference">
             <input type="checkbox" checked={state.showRef}
               onChange={e => dispatch({ type: 'SET_SHOW_REF', show: e.target.checked })} />
-            <span className="ref-toggle-label">📖 Ref</span>
+            <span className="ref-toggle-label">📖 Reference</span>
           </label>
         </div>
       </div>

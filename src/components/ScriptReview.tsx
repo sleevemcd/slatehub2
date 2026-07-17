@@ -275,7 +275,7 @@ export function ScriptReview() {
         description: text,
         subShot: '', location: '', setup: '', notes: '',
         referenceLink: '', shootDay: '', shootOrder: String(state.shots.length + 1),
-        done: false, priority: '', graphic: '', title: '', effect: '', duration: '', crew: [],
+        done: false, priority: '', graphic: '', title: '', effect: '', duration: '', roll: '', scene: '', crew: [],
       },
     })
     dispatch({

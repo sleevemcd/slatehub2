@@ -162,7 +162,7 @@ export function Dashboard() {
               const shot = shots.find(s => s.row === t.shotRow)
               return (
                 <div key={t.id} className={`dash-take-item ${t.good ? 'good' : 'ng'}`}>
-                  <span className="dash-take-shot">{shot?.description || `Shot #${t.shotRow}`}</span>
+                  <span className="dash-take-shot">{shot?.description || shot?.type || `Shot #${t.shotRow}`}</span>
                   <span className={`dash-take-verdict ${t.good ? 'good' : 'ng'}`}>
                     {t.good ? '✓' : '✗'} Take {t.takeNumber}
                   </span>

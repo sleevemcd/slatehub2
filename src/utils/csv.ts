@@ -71,6 +71,8 @@ export function rowsToShotRecords(headers: string[], rows: string[][]): ShotReco
       title: get(row, ['title']),
       effect: get(row, ['effect', 'fx']),
       duration: get(row, ['duration', 'time', 'length']),
+      roll: get(row, ['roll', 'reel', 'cam roll']),
+      scene: get(row, ['scene']),
       crew: [],
     }
   }).filter(s => s.type || s.description)
