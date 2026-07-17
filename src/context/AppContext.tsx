@@ -53,6 +53,7 @@ type Action =
   | { type: 'REMOVE_HIGHLIGHT'; id: string }
   | { type: 'UPDATE_HIGHLIGHT'; id: string; data: Partial<ScriptHighlight> }
   | { type: 'SET_HIGHLIGHTS'; highlights: ScriptHighlight[] }
+  | { type: 'ADD_HIGHLIGHT_NOTE'; id: string; note: string }
   | { type: 'SET_USER'; user: User }
   | { type: 'LOGIN'; user: User }
   | { type: 'SET_LAYOUT'; layout: Layout }
@@ -302,6 +303,8 @@ function reducer(state: AppState, action: Action): AppState {
       return { ...state, highlights: state.highlights.map(h => h.id === action.id ? { ...h, ...action.data } : h) }
     case 'SET_HIGHLIGHTS':
       return { ...state, highlights: action.highlights }
+    case 'ADD_HIGHLIGHT_NOTE':
+      return { ...state, highlights: state.highlights.map(h => h.id === action.id ? { ...h, note: action.note } : h) }
     case 'SET_USER':
       return { ...state, currentUser: action.user }
     case 'LOGIN': {

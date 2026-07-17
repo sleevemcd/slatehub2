@@ -12,6 +12,7 @@ import { CrewView } from './components/CrewView'
 import { LoginView } from './components/LoginView'
 import { ScriptReview } from './components/ScriptReview'
 import { ShootSchedule } from './components/ShootSchedule'
+import { HighlightsView } from './components/HighlightsView'
 import './App.css'
 
 function AppContent() {
@@ -40,6 +41,8 @@ function AppContent() {
         {state.view === 'teleprompter-remote' && <TeleprompterRemote />}
         {state.view === 'shoot-schedule' && <ShootSchedule />}
         {state.view === 'script-review' && <ScriptReview />}
+        {state.view === 'highlights' && <HighlightsView />}
+        {state.view === 'remove-highlights' && <HighlightsView />}
       </main>
     </div>
   )
