@@ -3856,4 +3856,19 @@ mark.script-hl:hover {
   .schedule-day-bar {
     width: 100%;
   }
+
+  .hl-color-picker {
+    transform: translate(-50%, -100%) scale(0.9);
+  }
+
+  .hl-action-bar {
+    left: 50% !important;
+    transform: translate(-50%, -100%);
+    min-width: 160px;
+  }
+
+  .hl-color-btn {
+    width: 28px;
+    height: 28px;
+  }
 }
