@@ -2909,6 +2909,9 @@
   border: 2px solid var(--accent);
   border-radius: 8px;
   margin-bottom: 16px;
+  position: sticky;
+  top: 60px;
+  z-index: 50;
 }
 .script-selection-text {
   flex: 1;
