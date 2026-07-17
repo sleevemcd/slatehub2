@@ -3,6 +3,7 @@ import { useApp } from '../context/AppContext'
 import { FilterBar } from './FilterBar'
 import { ShotCard } from './ShotCard'
 import type { ShotRecord } from '../types'
+import { HIGHLIGHT_COLORS } from '../types'
 
 export function ShotList() {
   const { state, dispatch, openSlate, toggleDone, setShotPriority, deleteShots, updateShot, reorderShots } = useApp()
@@ -48,19 +49,38 @@ export function ShotList() {
 
     let groups: { label: string; shots: typeof result }[] = []
     if (state.groupBy) {
-      const map = new Map<string, typeof result>()
-      for (const s of result) {
-        const key = s[state.groupBy] || '(none)'
-        if (!map.has(key)) map.set(key, [])
-        map.get(key)!.push(s)
+      if (state.groupBy === 'highlight') {
+        const shotToColor = new Map<number, string>()
+        for (const h of state.highlights) {
+          if (h.shotId !== null && !shotToColor.has(h.shotId)) {
+            shotToColor.set(h.shotId, h.color)
+          }
+        }
+        const colorMap = new Map<string, typeof result>()
+        for (const s of result) {
+          const color = shotToColor.get(s.row)
+          const key = color ? (HIGHLIGHT_COLORS.find(c => c.value === color)?.name || color) : 'No Highlight'
+          if (!colorMap.has(key)) colorMap.set(key, [])
+          colorMap.get(key)!.push(s)
+        }
+        groups = Array.from(colorMap.entries())
+          .sort(([a], [b]) => a.localeCompare(b))
+          .map(([label, shots]) => ({ label, shots }))
+      } else {
+        const map = new Map<string, typeof result>()
+        for (const s of result) {
+          const key = (s as unknown as Record<string, string>)[state.groupBy as string] || '(none)'
+          if (!map.has(key)) map.set(key, [])
+          map.get(key)!.push(s)
+        }
+        groups = Array.from(map.entries())
+          .sort(([a], [b]) => a.localeCompare(b))
+          .map(([label, shots]) => ({ label, shots }))
       }
-      groups = Array.from(map.entries())
-        .sort(([a], [b]) => a.localeCompare(b))
-        .map(([label, shots]) => ({ label, shots }))
     }
 
     return { filtered: result, groups }
-  }, [state.shots, state.filters, state.sortKey, state.sortAsc, state.groupBy])
+  }, [state.shots, state.filters, state.sortKey, state.sortAsc, state.groupBy, state.highlights])
 
   const getTakeCount = (row: number) =>
     state.takes.filter(t => t.shotRow === row).length

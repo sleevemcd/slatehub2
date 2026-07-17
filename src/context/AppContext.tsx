@@ -1,6 +1,6 @@
 import { createContext, useContext, useReducer, useCallback, useEffect, useRef } from 'react'
 import type { ReactNode } from 'react'
-import type { AppState, ShotRecord, Take, SortKey, ViewState, TeleprompterConfig, TeleprompterState, Theme, Project, Layout, GroupBy, User, CrewMember, Notification, TeleprompterMarker } from '../types'
+import type { AppState, ShotRecord, Take, SortKey, ViewState, TeleprompterConfig, TeleprompterState, Theme, Project, Layout, GroupBy, User, CrewMember, Notification, TeleprompterMarker, ScriptHighlight } from '../types'
 import { fetchSheetCsv } from '../utils/sheet'
 import { parseCSV, rowsToShotRecords } from '../utils/csv'
 
@@ -49,6 +49,10 @@ type Action =
   | { type: 'SET_THEME'; theme: Theme }
   | { type: 'SET_TELEPROMPTER_CONFIG'; config: Partial<TeleprompterConfig> }
   | { type: 'SET_TELEPROMPTER_STATE'; state: Partial<TeleprompterState> }
+  | { type: 'ADD_HIGHLIGHT'; highlight: ScriptHighlight }
+  | { type: 'REMOVE_HIGHLIGHT'; id: string }
+  | { type: 'UPDATE_HIGHLIGHT'; id: string; data: Partial<ScriptHighlight> }
+  | { type: 'SET_HIGHLIGHTS'; highlights: ScriptHighlight[] }
   | { type: 'SET_USER'; user: User }
   | { type: 'LOGIN'; user: User }
   | { type: 'SET_LAYOUT'; layout: Layout }
@@ -197,6 +201,7 @@ const initialState: AppState = {
   writeBackUrl: '',
   teleprompter: defaultTeleprompterConfig,
   teleprompterState: defaultTeleprompterState,
+  highlights: [],
 }
 
 function reducer(state: AppState, action: Action): AppState {
@@ -289,6 +294,14 @@ function reducer(state: AppState, action: Action): AppState {
         ...state,
         teleprompterState: { ...state.teleprompterState, ...action.state, lastUpdate: new Date().toISOString() },
       }
+    case 'ADD_HIGHLIGHT':
+      return { ...state, highlights: [...state.highlights, action.highlight] }
+    case 'REMOVE_HIGHLIGHT':
+      return { ...state, highlights: state.highlights.filter(h => h.id !== action.id) }
+    case 'UPDATE_HIGHLIGHT':
+      return { ...state, highlights: state.highlights.map(h => h.id === action.id ? { ...h, ...action.data } : h) }
+    case 'SET_HIGHLIGHTS':
+      return { ...state, highlights: action.highlights }
     case 'SET_USER':
       return { ...state, currentUser: action.user }
     case 'LOGIN': {

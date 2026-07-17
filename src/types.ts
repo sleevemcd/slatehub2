@@ -92,10 +92,31 @@ export interface TeleprompterState {
   markers: TeleprompterMarker[]
 }
 
+export interface ScriptHighlight {
+  id: string
+  paragraphIndex: number
+  text: string
+  color: string
+  shotId: number | null
+  createdAt: string
+  startOffset: number
+  endOffset: number
+}
+
+export const HIGHLIGHT_COLORS = [
+  { name: 'Yellow', value: '#ffe600' },
+  { name: 'Orange', value: '#ff9f00' },
+  { name: 'Green', value: '#4caf50' },
+  { name: 'Blue', value: '#42a5f5' },
+  { name: 'Pink', value: '#ec407a' },
+  { name: 'Purple', value: '#ab47bc' },
+  { name: 'Red', value: '#ef5350' },
+]
+
 export type Theme = 'dark' | 'light'
 
 export type Layout = 'grid' | 'list'
-export type GroupBy = '' | 'type' | 'location' | 'shootDay' | 'priority'
+export type GroupBy = '' | 'type' | 'location' | 'shootDay' | 'priority' | 'highlight'
 
 export interface User {
   name: string
@@ -136,4 +157,5 @@ export interface AppState {
   writeBackUrl: string
   teleprompter: TeleprompterConfig
   teleprompterState: TeleprompterState
+  highlights: ScriptHighlight[]
 }
