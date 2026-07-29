@@ -11,7 +11,7 @@ function formatTcFromDate(date: Date): string {
   const h = date.getHours()
   const m = date.getMinutes()
   const s = date.getSeconds()
-  const f = 1 + Math.floor(date.getMilliseconds() / 33.33)
+  const f = Math.floor(date.getMilliseconds() / 33.33)
   return [h, m, s, f].map(v => String(v).padStart(2, '0')).join(':')
 }
 
@@ -220,9 +220,11 @@ export function MarkersView() {
     sorted.forEach((m, i) => {
       const num = String(i + 1).padStart(3, '0')
       const end = m.rangeEnd || m.timecode
+      const sanitizedType = m.markerType.replace(/[^a-zA-Z0-9 _-]/g, '')
+      const sanitizedNote = m.note.replace(/[^a-zA-Z0-9 _-]/g, '')
       edl += `${num}  AX       V     C        ${m.timecode} ${end} ${m.timecode} ${end}\n`
-      edl += `* FROM CLIP NAME: ${m.markerType}\n`
-      if (m.note) edl += `* COMMENT: ${m.note}\n`
+      edl += `* FROM CLIP NAME: ${sanitizedType}\n`
+      if (sanitizedNote) edl += `* COMMENT: ${sanitizedNote}\n`
       edl += '\n'
     })
     const blob = new Blob([edl], { type: 'text/plain' })
@@ -427,7 +429,7 @@ export function MarkersView() {
               </button>
             </div>
             <p className="setup-hint" style={{ marginTop: 8 }}>
-              EDL (CMX3600) works directly in DaVinci Resolve: File → Import → Import Markers from EDL...
+              EDL (CMX3600) — In DaVinci Resolve, right-click timeline in Media Pool → Timelines → Import → Timeline Markers from EDL
             </p>
           </div>
         </div>
