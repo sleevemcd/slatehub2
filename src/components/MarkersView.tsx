@@ -15,6 +15,45 @@ function formatTcFromDate(date: Date): string {
   return [h, m, s, f].map(v => String(v).padStart(2, '0')).join(':')
 }
 
+interface MarkerRowProps {
+  marker: ShotMarker
+  onUpdate: (id: string, data: Partial<ShotMarker>) => void
+  onDelete: (id: string) => void
+}
+
+function MarkerRow({ marker, onUpdate, onDelete }: MarkerRowProps) {
+  const [editing, setEditing] = useState(false)
+  const [noteDraft, setNoteDraft] = useState(marker.note)
+  const preset = MARKER_PRESETS.find(p => p.color === marker.color) || MARKER_PRESETS[7]
+
+  return (
+    <div className="marker-recent-entry">
+      <span className="marker-recent-tc" style={{ color: marker.color }}>{marker.timecode}</span>
+      <span className="marker-recent-dot" style={{ background: marker.color }} />
+      <span className="marker-recent-type">{preset.icon} {marker.markerType}</span>
+      {marker.rangeEnd && <span className="marker-recent-range">→ {marker.rangeEnd}</span>}
+      <span className="marker-note-text" onClick={() => { setEditing(true); setNoteDraft(marker.note) }}
+        title="Edit note">
+        {marker.note || <span className="marker-note-placeholder">+ note</span>}
+      </span>
+      {editing ? (
+        <span className="marker-note-edit">
+          <input className="input marker-note-input-sm" value={noteDraft}
+            onChange={e => setNoteDraft(e.target.value)}
+            onKeyDown={e => {
+              if (e.key === 'Enter') { onUpdate(marker.id, { note: noteDraft }); setEditing(false) }
+              if (e.key === 'Escape') { setEditing(false); setNoteDraft(marker.note) }
+            }}
+            onBlur={() => { onUpdate(marker.id, { note: noteDraft }); setEditing(false) }}
+            autoFocus />
+        </span>
+      ) : null}
+      <button className="marker-del-btn" onClick={() => onDelete(marker.id)}
+        title="Delete marker">✕</button>
+    </div>
+  )
+}
+
 export function MarkersView() {
   const { state, dispatch, goToView } = useApp()
   const [tab, setTab] = useState<'live' | 'history' | 'setup'>('live')
@@ -100,9 +139,7 @@ export function MarkersView() {
       dispatch({ type: 'UPDATE_SESSION', id: currentSession.id, updates: { markerCount: currentSession.markerCount + 1 } })
     }
     setTimeout(() => {
-      if (scrollRef.current) {
-        scrollRef.current.scrollTop = scrollRef.current.scrollHeight
-      }
+      if (scrollRef.current) scrollRef.current.scrollTop = scrollRef.current.scrollHeight
     }, 50)
   }, [currentTc, state.activeProjectId, currentSession, dispatch])
 
@@ -125,14 +162,24 @@ export function MarkersView() {
     }
   }, [state.activeProjectId, currentSession, dispatch])
 
+  const updateMarker = useCallback((id: string, data: Partial<ShotMarker>) => {
+    dispatch({ type: 'UPDATE_MARKER', id, data })
+  }, [dispatch])
+
+  const deleteMarker = useCallback((id: string) => {
+    dispatch({ type: 'REMOVE_MARKER', id })
+  }, [dispatch])
+
+  const deleteSession = useCallback((id: string) => {
+    dispatch({ type: 'REMOVE_SESSION', id })
+  }, [dispatch])
+
   const handlePointerDown = (presetName: string) => {
     if (!sessionActive) return
     setHoldMarkerType(presetName)
     setHoldStartTc(currentTc)
     setHolding(false)
-    const timer = setTimeout(() => {
-      setHolding(true)
-    }, 400)
+    const timer = setTimeout(() => { setHolding(true) }, 400)
     setHoldTimer(timer)
   }
 
@@ -247,17 +294,9 @@ export function MarkersView() {
                 {sorted.filter(m => m.createdAt > (currentSession?.startedAt || '')).length === 0 ? (
                   <div className="marker-recent-empty">Tap a marker button to mark the current timecode</div>
                 ) : (
-                  sorted.filter(m => m.createdAt > (currentSession?.startedAt || '')).reverse().slice(0, 20).map(m => {
-                    const preset = MARKER_PRESETS.find(p => p.color === m.color) || MARKER_PRESETS[7]
-                    return (
-                      <div key={m.id} className="marker-recent-entry">
-                        <span className="marker-recent-tc" style={{ color: m.color }}>{m.timecode}</span>
-                        <span className="marker-recent-dot" style={{ background: m.color }} />
-                        <span className="marker-recent-type">{preset.icon} {m.markerType}</span>
-                        {m.rangeEnd && <span className="marker-recent-range">→ {m.rangeEnd}</span>}
-                      </div>
-                    )
-                  })
+                  sorted.filter(m => m.createdAt > (currentSession?.startedAt || '')).reverse().slice(0, 20).map(m => (
+                    <MarkerRow key={m.id} marker={m} onUpdate={updateMarker} onDelete={deleteMarker} />
+                  ))
                 )}
               </div>
             </div>
@@ -279,20 +318,15 @@ export function MarkersView() {
                     <div className="marker-history-session-meta">
                       <span>{new Date(s.startedAt).toLocaleDateString()}</span>
                       <span>{sessionMarks.length} markers</span>
+                      <button className="marker-del-btn marker-del-show"
+                        onClick={() => deleteSession(s.id)} title="Delete session">✕</button>
                     </div>
                   </div>
                   {sessionMarks.length > 0 && (
                     <div className="marker-history-marks">
-                      {sessionMarks.map(m => {
-                        const preset = MARKER_PRESETS.find(p => p.color === m.color) || MARKER_PRESETS[7]
-                        return (
-                          <div key={m.id} className="marker-recent-entry">
-                            <span className="marker-recent-tc" style={{ color: m.color }}>{m.timecode}</span>
-                            <span className="marker-recent-dot" style={{ background: m.color }} />
-                            <span className="marker-recent-type">{preset.icon} {m.markerType}</span>
-                          </div>
-                        )
-                      })}
+                      {sessionMarks.map(m => (
+                        <MarkerRow key={m.id} marker={m} onUpdate={updateMarker} onDelete={deleteMarker} />
+                      ))}
                     </div>
                   )}
                 </div>

@@ -3648,6 +3648,57 @@ mark.script-hl {
   color: var(--text-dim);
   font-style: italic;
 }
+.marker-note-text {
+  font-size: 11px;
+  color: var(--accent);
+  cursor: pointer;
+  max-width: 120px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  padding: 0 4px;
+  border-radius: 3px;
+  flex-shrink: 0;
+}
+.marker-note-text:hover {
+  background: var(--bg-hover);
+}
+.marker-note-placeholder {
+  opacity: 0.4;
+  font-style: italic;
+}
+.marker-note-edit {
+  flex-shrink: 0;
+}
+.marker-note-input-sm {
+  width: 120px;
+  font-size: 11px;
+  padding: 2px 6px;
+  height: 24px;
+}
+.marker-del-btn {
+  opacity: 0;
+  background: none;
+  border: none;
+  color: var(--text-dim);
+  cursor: pointer;
+  font-size: 12px;
+  padding: 2px 4px;
+  border-radius: 3px;
+  flex-shrink: 0;
+  transition: opacity 0.12s;
+}
+.marker-del-show {
+  opacity: 0.4;
+}
+.marker-del-btn:hover {
+  opacity: 1 !important;
+  color: var(--danger);
+  background: var(--bg-hover);
+}
+.marker-recent-entry:hover .marker-del-btn {
+  opacity: 0.4;
+}
 
 /* History Tab */
 .marker-history {

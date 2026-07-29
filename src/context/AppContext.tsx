@@ -55,10 +55,12 @@ type Action =
   | { type: 'SET_HIGHLIGHTS'; highlights: ScriptHighlight[] }
   | { type: 'ADD_HIGHLIGHT_NOTE'; id: string; note: string }
   | { type: 'ADD_MARKER'; marker: ShotMarker }
+  | { type: 'UPDATE_MARKER'; id: string; data: Partial<ShotMarker> }
   | { type: 'REMOVE_MARKER'; id: string }
   | { type: 'SET_MARKERS'; markers: ShotMarker[] }
   | { type: 'ADD_SESSION'; session: MarkerSession }
   | { type: 'END_SESSION'; id: string }
+  | { type: 'REMOVE_SESSION'; id: string }
   | { type: 'UPDATE_SESSION'; id: string; updates: Partial<MarkerSession> }
   | { type: 'SET_SESSIONS'; sessions: MarkerSession[] }
   | { type: 'SET_USER'; user: User }
@@ -166,6 +168,32 @@ function loadSavedUsers(): User[] {
 
 function saveSavedUsers(users: User[]) {
   localStorage.setItem('slatehub-saved-users', JSON.stringify(users))
+}
+
+function markerStorageKey(projectId: string | null): string {
+  return `slatehub-markers-${projectId || 'default'}`
+}
+
+function loadMarkers(projectId: string | null): ShotMarker[] {
+  try {
+    const raw = localStorage.getItem(markerStorageKey(projectId))
+    return raw ? JSON.parse(raw) : []
+  } catch { return [] }
+}
+
+function saveMarkers(projectId: string | null, markers: ShotMarker[]) {
+  localStorage.setItem(markerStorageKey(projectId), JSON.stringify(markers))
+}
+
+function loadSessions(): MarkerSession[] {
+  try {
+    const raw = localStorage.getItem('slatehub-sessions')
+    return raw ? JSON.parse(raw) : []
+  } catch { return [] }
+}
+
+function saveSessions(sessions: MarkerSession[]) {
+  localStorage.setItem('slatehub-sessions', JSON.stringify(sessions))
 }
 
 function loadCrewData(projectId: string | null): { shotCrew: Record<number, string[]>; members: CrewMember[] } {
@@ -316,6 +344,8 @@ function reducer(state: AppState, action: Action): AppState {
       return { ...state, highlights: state.highlights.map(h => h.id === action.id ? { ...h, note: action.note } : h) }
     case 'ADD_MARKER':
       return { ...state, markers: [...state.markers, action.marker] }
+    case 'UPDATE_MARKER':
+      return { ...state, markers: state.markers.map(m => m.id === action.id ? { ...m, ...action.data } : m) }
     case 'REMOVE_MARKER':
       return { ...state, markers: state.markers.filter(m => m.id !== action.id) }
     case 'SET_MARKERS':
@@ -324,6 +354,8 @@ function reducer(state: AppState, action: Action): AppState {
       return { ...state, sessions: [...state.sessions, action.session] }
     case 'END_SESSION':
       return { ...state, sessions: state.sessions.map(s => s.id === action.id ? { ...s, endedAt: new Date().toISOString() } : s) }
+    case 'REMOVE_SESSION':
+      return { ...state, sessions: state.sessions.filter(s => s.id !== action.id) }
     case 'UPDATE_SESSION':
       return { ...state, sessions: state.sessions.map(s => s.id === action.id ? { ...s, ...action.updates } : s) }
     case 'SET_SESSIONS':
@@ -737,6 +769,8 @@ export function AppProvider({ children }: { children: ReactNode }) {
       shots: state.shots,
       sheetUrl: state.sheetUrl,
       takes: state.takes,
+      markers: state.markers,
+      sessions: state.sessions,
     })
     if (snapshot === prevSaveRef.current) return
     prevSaveRef.current = snapshot
@@ -778,6 +812,12 @@ export function AppProvider({ children }: { children: ReactNode }) {
       if (apiData.takes) {
         apiData.takes.forEach(t => dispatch({ type: 'ADD_TAKE', take: t }))
       }
+      if (apiData.markers) {
+        apiData.markers.forEach(m => dispatch({ type: 'ADD_MARKER', marker: m }))
+      }
+      if (apiData.sessions) {
+        apiData.sessions.forEach(s => dispatch({ type: 'ADD_SESSION', session: s }))
+      }
       if (!apiData?.shots) {
         const local = loadShotData(apiData?.activeProjectId || state.activeProjectId)
         if (local.shots.length > 0) {
@@ -788,6 +828,14 @@ export function AppProvider({ children }: { children: ReactNode }) {
         if (localTakes.length > 0) {
           localTakes.forEach(t => dispatch({ type: 'ADD_TAKE', take: t }))
         }
+      }
+      if (!apiData?.markers) {
+        const local = loadMarkers(apiData?.activeProjectId || state.activeProjectId)
+        if (local.length > 0) local.forEach(m => dispatch({ type: 'ADD_MARKER', marker: m }))
+      }
+      if (!apiData?.sessions) {
+        const local = loadSessions()
+        if (local.length > 0) local.forEach(s => dispatch({ type: 'ADD_SESSION', session: s }))
       }
     })
   }, [])
@@ -804,6 +852,18 @@ export function AppProvider({ children }: { children: ReactNode }) {
       saveTakes(projectId, state.takes)
     }
   }, [state.takes, projectId])
+
+  useEffect(() => {
+    if (state.markers.length > 0) {
+      saveMarkers(projectId, state.markers)
+    }
+  }, [state.markers, projectId])
+
+  useEffect(() => {
+    if (state.sessions.length > 0) {
+      saveSessions(state.sessions)
+    }
+  }, [state.sessions])
 
   return (
     <AppContext.Provider value={{
