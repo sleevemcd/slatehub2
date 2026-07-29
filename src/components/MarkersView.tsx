@@ -7,11 +7,13 @@ function generateId(): string {
   return Date.now().toString(36) + '-' + Math.random().toString(36).substring(2, 8)
 }
 
-function formatTcFromDate(date: Date): string {
-  const h = date.getHours()
-  const m = date.getMinutes()
-  const s = date.getSeconds()
-  const f = Math.floor(date.getMilliseconds() / 33.33)
+const FPS = 30
+
+function formatFrames(frames: number): string {
+  const h = Math.floor(frames / (3600 * FPS))
+  const m = Math.floor((frames % (3600 * FPS)) / (60 * FPS))
+  const s = Math.floor((frames % (60 * FPS)) / FPS)
+  const f = frames % FPS
   return [h, m, s, f].map(v => String(v).padStart(2, '0')).join(':')
 }
 
@@ -59,14 +61,15 @@ export function MarkersView() {
   const [tab, setTab] = useState<'live' | 'history' | 'setup'>('live')
   const [sessionActive, setSessionActive] = useState(false)
   const [sessionName, setSessionName] = useState('')
-  const [currentTc, setCurrentTc] = useState(formatTcFromDate(new Date()))
+  const [currentFrames, setCurrentFrames] = useState(0)
   const [holdTimer, setHoldTimer] = useState<ReturnType<typeof setTimeout> | undefined>(undefined)
   const [holding, setHolding] = useState(false)
   const [holdMarkerType, setHoldMarkerType] = useState('')
-  const [holdStartTc, setHoldStartTc] = useState('')
+  const [holdStartFrames, setHoldStartFrames] = useState(0)
 
   const animRef = useRef<number>(0)
   const scrollRef = useRef<HTMLDivElement>(null)
+  const sessionStartRef = useRef(0)
 
   const currentSession = state.sessions.find(s => !s.endedAt) || null
 
@@ -84,6 +87,8 @@ export function MarkersView() {
       cameraModel: '',
     }
     dispatch({ type: 'ADD_SESSION', session })
+    sessionStartRef.current = performance.now()
+    setCurrentFrames(0)
     setSessionActive(true)
   }
 
@@ -94,7 +99,7 @@ export function MarkersView() {
         dispatch({ type: 'ADD_MARKER', marker: {
           id: generateId(),
           projectId: state.activeProjectId,
-          timecode: currentTc,
+          timecode: formatFrames(currentFrames),
           color: '#ef5350',
           markerType: 'Session End',
           note: '',
@@ -114,7 +119,8 @@ export function MarkersView() {
       return
     }
     const tick = () => {
-      setCurrentTc(formatTcFromDate(new Date()))
+      const elapsed = (performance.now() - sessionStartRef.current) / 1000
+      setCurrentFrames(Math.floor(elapsed * FPS))
       animRef.current = requestAnimationFrame(tick)
     }
     animRef.current = requestAnimationFrame(tick)
@@ -126,7 +132,7 @@ export function MarkersView() {
     const marker: ShotMarker = {
       id: generateId(),
       projectId: state.activeProjectId,
-      timecode: currentTc,
+      timecode: formatFrames(currentFrames),
       color: preset.color,
       markerType: presetName,
       note: '',
@@ -141,10 +147,12 @@ export function MarkersView() {
     setTimeout(() => {
       if (scrollRef.current) scrollRef.current.scrollTop = scrollRef.current.scrollHeight
     }, 50)
-  }, [currentTc, state.activeProjectId, currentSession, dispatch])
+  }, [currentFrames, state.activeProjectId, currentSession, dispatch])
 
-  const addRangeMarker = useCallback((presetName: string, startTc: string, endTc: string) => {
+  const addRangeMarker = useCallback((presetName: string, startFrames: number, endFrames: number) => {
     const preset = MARKER_PRESETS.find(p => p.name === presetName) || MARKER_PRESETS[7]
+    const startTc = formatFrames(startFrames)
+    const endTc = formatFrames(endFrames)
     const marker: ShotMarker = {
       id: generateId(),
       projectId: state.activeProjectId,
@@ -177,7 +185,7 @@ export function MarkersView() {
   const handlePointerDown = (presetName: string) => {
     if (!sessionActive) return
     setHoldMarkerType(presetName)
-    setHoldStartTc(currentTc)
+    setHoldStartFrames(currentFrames)
     setHolding(false)
     const timer = setTimeout(() => { setHolding(true) }, 400)
     setHoldTimer(timer)
@@ -186,7 +194,7 @@ export function MarkersView() {
   const handlePointerUp = (presetName: string) => {
     clearTimeout(holdTimer)
     if (holding) {
-      addRangeMarker(presetName, holdStartTc, currentTc)
+      addRangeMarker(presetName, holdStartFrames, currentFrames)
     } else {
       addMarker(presetName)
     }
@@ -200,6 +208,23 @@ export function MarkersView() {
 
   const sessionMarkers = state.markers.filter(m => m.projectId === state.activeProjectId)
   const sorted = [...sessionMarkers].sort((a, b) => a.timecode.localeCompare(b.timecode))
+
+  function tcToFrames(tc: string): number {
+    const p = tc.split(':').map(Number)
+    if (p.length !== 4 || p.some(isNaN)) return 0
+    return ((p[0] * 3600) + (p[1] * 60) + p[2]) * FPS + p[3]
+  }
+
+  function hexToResolveColor(hex: string): string {
+    const map: Record<string, string> = {
+      '#4caf50': 'Green', '#ffeb3b': 'Yellow', '#f44336': 'Red',
+      '#2196f3': 'Cyan', '#9c27b0': 'Purple', '#ff6b35': 'Orange',
+      '#00bcd4': 'Cyan', '#e91e63': 'Magenta', '#ffffff': 'White',
+      '#ff9800': 'Orange', '#8bc34a': 'Green', '#607d8b': 'Blue',
+      '#795548': 'Purple', '#ef5350': 'Red',
+    }
+    return map[hex.toLowerCase()] || 'Orange'
+  }
 
   const exportCsv = () => {
     let csv = 'Timecode,Type,Color,Note,Range End\n'
@@ -222,8 +247,7 @@ export function MarkersView() {
       const end = m.rangeEnd || m.timecode
       const sanitizedType = m.markerType.replace(/[^a-zA-Z0-9 _-]/g, '')
       const sanitizedNote = m.note.replace(/[^a-zA-Z0-9 _-]/g, '')
-      edl += `${num}  AX       V     C        ${m.timecode} ${end} ${m.timecode} ${end}\n`
-      edl += `* FROM CLIP NAME: ${sanitizedType}\n`
+      edl += `${num}  AX       V     C        ${m.timecode} ${end} ${m.timecode} ${end}\n* MARKER: ${sanitizedType}\n`
       if (sanitizedNote) edl += `* COMMENT: ${sanitizedNote}\n`
       edl += '\n'
     })
@@ -232,6 +256,57 @@ export function MarkersView() {
     const a = document.createElement('a')
     a.href = url
     a.download = `markers-${new Date().toISOString().slice(0, 10)}.edl`
+    a.click()
+    URL.revokeObjectURL(url)
+  }
+
+  const exportResolveScript = () => {
+    const markersJson = sorted.map(m => ({
+      tc: m.timecode,
+      end: m.rangeEnd || m.timecode,
+      type: m.markerType,
+      note: m.note,
+      color: hexToResolveColor(m.color),
+    }))
+    const script = `# SlateHub Clip Markers — generated ${new Date().toISOString().slice(0, 10)}
+# Place this file in: DaVinci Resolve/Fusion/Scripts/Comp/
+# Run in Resolve: Workspace > Scripts > Comp > this_file.py
+
+resolve = bmd.scriptapp("Resolve")
+if not resolve:
+  raise Exception("Resolve not found")
+project = resolve.GetProjectManager().GetCurrentProject()
+timeline = project.GetCurrentTimeline()
+if not timeline:
+  raise Exception("No timeline open")
+
+FPS = 30
+markers = ${JSON.stringify(markersJson)}
+
+def tc_to_frames(tc):
+  p = tc.split(":")
+  return (int(p[0])*3600 + int(p[1])*60 + int(p[2])) * FPS + int(p[3])
+
+for track in range(1, timeline.GetTrackCount("video") + 1):
+  for idx in range(1, timeline.GetItemCountInTrack("video", track) + 1):
+    clip = timeline.GetItemByTrackAndIndex("video", track, idx)
+    clip_start = clip.GetStart()
+    clip_dur = clip.GetDuration()
+    clip_end = clip_start + clip_dur
+    for m in markers:
+      mf = tc_to_frames(m["tc"])
+      if clip_start <= mf < clip_end:
+        frame_offset = mf - clip_start
+        clip.AddMarker(frame_offset, m["color"], m["type"], m["note"], 1, "")
+        print(f"  Added marker '{m['type']}' at frame {frame_offset} on {clip.GetName()}")
+
+print("Done — markers added to clips")
+`
+    const blob = new Blob([script], { type: 'text/x-python' })
+    const url = URL.createObjectURL(blob)
+    const a = document.createElement('a')
+    a.href = url
+    a.download = `slatehub-markers-${new Date().toISOString().slice(0, 10)}.py`
     a.click()
     URL.revokeObjectURL(url)
   }
@@ -251,6 +326,7 @@ export function MarkersView() {
             <span className="marker-export-group">
               <button className="btn btn-ghost btn-sm" onClick={exportCsv}>CSV</button>
               <button className="btn btn-ghost btn-sm" onClick={exportEdl}>EDL</button>
+              <button className="btn btn-ghost btn-sm" onClick={exportResolveScript}>Resolve</button>
             </span>
           )}
         </div>
@@ -261,8 +337,8 @@ export function MarkersView() {
           {!sessionActive ? (
             <div className="marker-session-start">
               <div className="marker-session-start-content">
-                <div className="marker-tc-big">{currentTc}</div>
-                <p className="marker-tc-sub">Device time — sync your camera to this</p>
+                <div className="marker-tc-big">00:00:00:00</div>
+                <p className="marker-tc-sub">Timecode counts up from 0 when you start</p>
                 <input className="input marker-session-name-input"
                   placeholder="Session name (optional)"
                   value={sessionName} onChange={e => setSessionName(e.target.value)} />
@@ -277,7 +353,7 @@ export function MarkersView() {
                 <div className="marker-rec-indicator">
                   <span className="rec-dot" /> RECORDING
                 </div>
-                <div className="marker-tc-display">{currentTc}</div>
+                <div className="marker-tc-display">{formatFrames(currentFrames)}</div>
                 <button className="btn btn-ghost btn-sm" onClick={stopSession}>■ Stop</button>
               </div>
 
@@ -371,47 +447,35 @@ export function MarkersView() {
           <div className="setup-card">
             <h3>How Marker Works</h3>
             <ol className="setup-steps">
-              <li><strong>Start a Session</strong> — Matches your device's real-world clock.</li>
-              <li><strong>Sync your camera</strong> — Set your camera's timecode to match your device time.</li>
+              <li><strong>Start a Session</strong> — Timecode starts at 00:00:00:00 and counts up.</li>
               <li><strong>Tap to mark</strong> — Tap a marker button to place a marker at the current timecode. Hold for 400ms to create an In/Out range marker.</li>
-              <li><strong>Export</strong> — Export markers as CSV to import into your editing software.</li>
+              <li><strong>Export</strong> — Export as EDL and import into your editing software. Markers appear at the timecodes they were recorded.</li>
             </ol>
           </div>
 
           <div className="setup-card">
-            <h3>Camera Timecode Setup</h3>
-            <p className="setup-hint">Set your camera's timecode to Free Run / Time-of-Day to match your device.</p>
+            <h3>Camera Setup</h3>
+            <p className="setup-hint">For markers to align with your footage, set your camera to record timecode starting at 00:00:00:00 (Rec Run mode) and start your camera at the same time as you start the session.</p>
             <div className="setup-camera-tips">
               <div className="setup-camera-brand">
                 <h4>Sony</h4>
                 <ul>
-                  <li>Menu → TC/UB → TC Preset → Set to current time</li>
-                  <li>Set TC Run to Free Run</li>
-                  <li>Set TC Format to 30fps (or your project framerate)</li>
+                  <li>Menu → TC/UB → TC Preset → Set to 00:00:00:00</li>
+                  <li>Set TC Run to Record Run (starts/stops with recording)</li>
                 </ul>
               </div>
               <div className="setup-camera-brand">
                 <h4>Canon</h4>
                 <ul>
-                  <li>Menu → Time Code → Set to Free Run</li>
-                  <li>Set timecode to current real time</li>
-                  <li>Set to 30fps or match project framerate</li>
-                </ul>
-              </div>
-              <div className="setup-camera-brand">
-                <h4>RED</h4>
-                <ul>
-                  <li>Menu → Settings → Timecode → Set to Free Run</li>
-                  <li>Set time of day</li>
-                  <li>Ensure frame rate matches project</li>
+                  <li>Menu → Time Code → Preset → 00:00:00:00</li>
+                  <li>Set to Record Run mode</li>
                 </ul>
               </div>
               <div className="setup-camera-brand">
                 <h4>Blackmagic</h4>
                 <ul>
-                  <li>Menu → Timecode → Set to Free Run</li>
-                  <li>Set to current time</li>
-                  <li>Match project framerate (23.98, 24, 30)</li>
+                  <li>Menu → Timecode → Set to 00:00:00:00</li>
+                  <li>Set to Record Run</li>
                 </ul>
               </div>
             </div>
@@ -422,14 +486,20 @@ export function MarkersView() {
             <p className="setup-hint">Export markers for import into DaVinci Resolve, Premiere Pro, or Final Cut Pro.</p>
             <div className="setup-export-btns">
               <button className="btn" onClick={exportCsv} disabled={sorted.length === 0}>
-                Export CSV ({sorted.length} markers)
+                Export CSV
               </button>
               <button className="btn" onClick={exportEdl} disabled={sorted.length === 0}>
-                Export EDL ({sorted.length} markers)
+                Export EDL
+              </button>
+              <button className="btn" onClick={exportResolveScript} disabled={sorted.length === 0}>
+                Resolve Script
               </button>
             </div>
             <p className="setup-hint" style={{ marginTop: 8 }}>
-              EDL (CMX3600) — In DaVinci Resolve, right-click timeline in Media Pool → Timelines → Import → Timeline Markers from EDL
+              <strong>CSV/EDL</strong> — Timeline markers. Import via right-click timeline → Timelines → Import → Timeline Markers from EDL.
+            </p>
+            <p className="setup-hint">
+              <strong>Resolve Script</strong> — Clip markers (stick to clips). Save the .py file to <code>Fusion/Scripts/Comp/</code> in your Resolve user folder, then run via Workspace → Scripts → Comp → filename.py.
             </p>
           </div>
         </div>
