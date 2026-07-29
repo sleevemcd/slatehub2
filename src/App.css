@@ -3389,6 +3389,12 @@ mark.script-hl {
   text-align: center;
   user-select: none;
 }
+.marker-tc-sub {
+  font-size: 13px;
+  color: var(--text-muted);
+  text-align: center;
+  margin: 0;
+}
 .marker-session-type-select {
   width: 100%;
   display: flex;
