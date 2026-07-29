@@ -11,7 +11,7 @@ function formatTcFromDate(date: Date): string {
   const h = date.getHours()
   const m = date.getMinutes()
   const s = date.getSeconds()
-  const f = Math.floor(date.getMilliseconds() / 33.33)
+  const f = 1 + Math.floor(date.getMilliseconds() / 33.33)
   return [h, m, s, f].map(v => String(v).padStart(2, '0')).join(':')
 }
 
