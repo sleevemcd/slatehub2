@@ -9,11 +9,11 @@ function generateId(): string {
 
 const FPS = 30
 
-function formatFrames(frames: number): string {
-  const h = Math.floor(frames / (3600 * FPS))
-  const m = Math.floor((frames % (3600 * FPS)) / (60 * FPS))
-  const s = Math.floor((frames % (60 * FPS)) / FPS)
-  const f = frames % FPS
+function formatTcFromDate(date: Date): string {
+  const h = date.getHours()
+  const m = date.getMinutes()
+  const s = date.getSeconds()
+  const f = Math.floor(date.getMilliseconds() / 33.33)
   return [h, m, s, f].map(v => String(v).padStart(2, '0')).join(':')
 }
 
@@ -61,15 +61,14 @@ export function MarkersView() {
   const [tab, setTab] = useState<'live' | 'history' | 'setup'>('live')
   const [sessionActive, setSessionActive] = useState(false)
   const [sessionName, setSessionName] = useState('')
-  const [currentFrames, setCurrentFrames] = useState(0)
+  const [currentTc, setCurrentTc] = useState(formatTcFromDate(new Date()))
   const [holdTimer, setHoldTimer] = useState<ReturnType<typeof setTimeout> | undefined>(undefined)
   const [holding, setHolding] = useState(false)
   const [holdMarkerType, setHoldMarkerType] = useState('')
-  const [holdStartFrames, setHoldStartFrames] = useState(0)
+  const [holdStartTc, setHoldStartTc] = useState('')
 
   const animRef = useRef<number>(0)
   const scrollRef = useRef<HTMLDivElement>(null)
-  const sessionStartRef = useRef(0)
 
   const currentSession = state.sessions.find(s => !s.endedAt) || null
 
@@ -87,8 +86,6 @@ export function MarkersView() {
       cameraModel: '',
     }
     dispatch({ type: 'ADD_SESSION', session })
-    sessionStartRef.current = performance.now()
-    setCurrentFrames(0)
     setSessionActive(true)
   }
 
@@ -99,7 +96,7 @@ export function MarkersView() {
         dispatch({ type: 'ADD_MARKER', marker: {
           id: generateId(),
           projectId: state.activeProjectId,
-          timecode: formatFrames(currentFrames),
+          timecode: currentTc,
           color: '#ef5350',
           markerType: 'Session End',
           note: '',
@@ -119,8 +116,7 @@ export function MarkersView() {
       return
     }
     const tick = () => {
-      const elapsed = (performance.now() - sessionStartRef.current) / 1000
-      setCurrentFrames(Math.floor(elapsed * FPS))
+      setCurrentTc(formatTcFromDate(new Date()))
       animRef.current = requestAnimationFrame(tick)
     }
     animRef.current = requestAnimationFrame(tick)
@@ -132,7 +128,7 @@ export function MarkersView() {
     const marker: ShotMarker = {
       id: generateId(),
       projectId: state.activeProjectId,
-      timecode: formatFrames(currentFrames),
+      timecode: currentTc,
       color: preset.color,
       markerType: presetName,
       note: '',
@@ -147,12 +143,10 @@ export function MarkersView() {
     setTimeout(() => {
       if (scrollRef.current) scrollRef.current.scrollTop = scrollRef.current.scrollHeight
     }, 50)
-  }, [currentFrames, state.activeProjectId, currentSession, dispatch])
+  }, [currentTc, state.activeProjectId, currentSession, dispatch])
 
-  const addRangeMarker = useCallback((presetName: string, startFrames: number, endFrames: number) => {
+  const addRangeMarker = useCallback((presetName: string, startTc: string, endTc: string) => {
     const preset = MARKER_PRESETS.find(p => p.name === presetName) || MARKER_PRESETS[7]
-    const startTc = formatFrames(startFrames)
-    const endTc = formatFrames(endFrames)
     const marker: ShotMarker = {
       id: generateId(),
       projectId: state.activeProjectId,
@@ -185,7 +179,7 @@ export function MarkersView() {
   const handlePointerDown = (presetName: string) => {
     if (!sessionActive) return
     setHoldMarkerType(presetName)
-    setHoldStartFrames(currentFrames)
+    setHoldStartTc(currentTc)
     setHolding(false)
     const timer = setTimeout(() => { setHolding(true) }, 400)
     setHoldTimer(timer)
@@ -194,7 +188,7 @@ export function MarkersView() {
   const handlePointerUp = (presetName: string) => {
     clearTimeout(holdTimer)
     if (holding) {
-      addRangeMarker(presetName, holdStartFrames, currentFrames)
+      addRangeMarker(presetName, holdStartTc, currentTc)
     } else {
       addMarker(presetName)
     }
@@ -253,20 +247,28 @@ def tc_to_frames(tc):
   p = tc.split(":")
   return (int(p[0])*3600 + int(p[1])*60 + int(p[2])) * FPS + int(p[3])
 
+count = 0
 for track in range(1, timeline.GetTrackCount("video") + 1):
   for idx in range(1, timeline.GetItemCountInTrack("video", track) + 1):
     clip = timeline.GetItemByTrackAndIndex("video", track, idx)
-    clip_start = clip.GetStart()
-    clip_dur = clip.GetDuration()
-    clip_end = clip_start + clip_dur
+    mp_item = clip.GetMediaPoolItem()
+    if not mp_item:
+      continue
+    src_start = mp_item.GetClipProperty("Start TC")
+    src_end = mp_item.GetClipProperty("End TC")
+    if not src_start or not src_end:
+      continue
+    clip_start_f = tc_to_frames(src_start)
+    clip_end_f = tc_to_frames(src_end)
     for m in markers:
       mf = tc_to_frames(m["tc"])
-      if clip_start <= mf < clip_end:
-        frame_offset = mf - clip_start
+      if clip_start_f <= mf < clip_end_f:
+        frame_offset = mf - clip_start_f
         clip.AddMarker(frame_offset, m["color"], m["type"], m["note"], 1, "")
-        print(f"  Added marker '{m['type']}' at frame {frame_offset} on {clip.GetName()}")
+        count += 1
+        print(f"  Marker '{m['type']}' -> {clip.GetName()} at frame {frame_offset}")
 
-print("Done — markers added to clips")
+print(f"Done — {count} markers added to clips")
 `
     const blob = new Blob([script], { type: 'text/x-python' })
     const url = URL.createObjectURL(blob)
@@ -301,8 +303,8 @@ print("Done — markers added to clips")
           {!sessionActive ? (
             <div className="marker-session-start">
               <div className="marker-session-start-content">
-                <div className="marker-tc-big">00:00:00:00</div>
-                <p className="marker-tc-sub">Timecode counts up from 0 when you start</p>
+                <div className="marker-tc-big">{currentTc}</div>
+                <p className="marker-tc-sub">Device time — sync your camera clock to match</p>
                 <input className="input marker-session-name-input"
                   placeholder="Session name (optional)"
                   value={sessionName} onChange={e => setSessionName(e.target.value)} />
@@ -317,7 +319,7 @@ print("Done — markers added to clips")
                 <div className="marker-rec-indicator">
                   <span className="rec-dot" /> RECORDING
                 </div>
-                <div className="marker-tc-display">{formatFrames(currentFrames)}</div>
+                <div className="marker-tc-display">{currentTc}</div>
                 <button className="btn btn-ghost btn-sm" onClick={stopSession}>■ Stop</button>
               </div>
 
@@ -411,35 +413,36 @@ print("Done — markers added to clips")
           <div className="setup-card">
             <h3>How Marker Works</h3>
             <ol className="setup-steps">
-              <li><strong>Start a Session</strong> — Timecode starts at 00:00:00:00 and counts up.</li>
+              <li><strong>Start a Session</strong> — Timecode syncs to your device's real-world clock.</li>
+              <li><strong>Sync your camera</strong> — Set your camera's timecode to Free Run / Time-of-Day and match the clock to your device.</li>
               <li><strong>Tap to mark</strong> — Tap a marker button to place a marker at the current timecode. Hold for 400ms to create an In/Out range marker.</li>
-              <li><strong>Export</strong> — Export as EDL and import into your editing software. Markers appear at the timecodes they were recorded.</li>
+              <li><strong>Export</strong> — Export the Resolve Python script. It matches markers to clips by timecode range and adds clip markers.</li>
             </ol>
           </div>
 
           <div className="setup-card">
             <h3>Camera Setup</h3>
-            <p className="setup-hint">For markers to align with your footage, set your camera to record timecode starting at 00:00:00:00 (Rec Run mode) and start your camera at the same time as you start the session.</p>
+            <p className="setup-hint">Set your camera's timecode to Free Run / Time-of-Day and sync its clock to your device. Clips will carry this timecode metadata and the Resolve script matches markers to them.</p>
             <div className="setup-camera-tips">
               <div className="setup-camera-brand">
                 <h4>Sony</h4>
                 <ul>
-                  <li>Menu → TC/UB → TC Preset → Set to 00:00:00:00</li>
-                  <li>Set TC Run to Record Run (starts/stops with recording)</li>
+                  <li>Menu → TC/UB → TC Preset → Set to current time</li>
+                  <li>Set TC Run to Free Run</li>
                 </ul>
               </div>
               <div className="setup-camera-brand">
                 <h4>Canon</h4>
                 <ul>
-                  <li>Menu → Time Code → Preset → 00:00:00:00</li>
-                  <li>Set to Record Run mode</li>
+                  <li>Menu → Time Code → Preset → Set to current time</li>
+                  <li>Set to Free Run</li>
                 </ul>
               </div>
               <div className="setup-camera-brand">
                 <h4>Blackmagic</h4>
                 <ul>
-                  <li>Menu → Timecode → Set to 00:00:00:00</li>
-                  <li>Set to Record Run</li>
+                  <li>Menu → Timecode → Set to current time</li>
+                  <li>Set to Free Run</li>
                 </ul>
               </div>
             </div>
