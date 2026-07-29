@@ -3827,6 +3827,22 @@ mark.script-hl {
   }
 }
 
+.marker-export-group {
+  display: flex;
+  gap: 4px;
+}
+.marker-export-group .btn-sm {
+  font-size: 10px;
+  padding: 4px 8px;
+}
+.setup-export-btns {
+  display: flex;
+  gap: 8px;
+}
+.setup-export-btns .btn {
+  flex: 1;
+}
+
 /* === Priority === */
 .shot-priority-badge {
   display: inline-block;

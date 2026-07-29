@@ -201,7 +201,7 @@ export function MarkersView() {
   const sessionMarkers = state.markers.filter(m => m.projectId === state.activeProjectId)
   const sorted = [...sessionMarkers].sort((a, b) => a.timecode.localeCompare(b.timecode))
 
-  const exportMarkers = () => {
+  const exportCsv = () => {
     let csv = 'Timecode,Type,Color,Note,Range End\n'
     for (const m of sorted) {
       csv += `${m.timecode},${m.markerType},${m.color},"${m.note}",${m.rangeEnd}\n`
@@ -211,6 +211,25 @@ export function MarkersView() {
     const a = document.createElement('a')
     a.href = url
     a.download = `markers-${new Date().toISOString().slice(0, 10)}.csv`
+    a.click()
+    URL.revokeObjectURL(url)
+  }
+
+  const exportEdl = () => {
+    let edl = `TITLE: SlateHub Markers Export\nFCM: NON-DROP FRAME\n\n`
+    sorted.forEach((m, i) => {
+      const num = String(i + 1).padStart(3, '0')
+      const end = m.rangeEnd || m.timecode
+      edl += `${num}  AX       V     C        ${m.timecode} ${end} ${m.timecode} ${end}\n`
+      edl += `* FROM CLIP NAME: ${m.markerType}\n`
+      if (m.note) edl += `* COMMENT: ${m.note}\n`
+      edl += '\n'
+    })
+    const blob = new Blob([edl], { type: 'text/plain' })
+    const url = URL.createObjectURL(blob)
+    const a = document.createElement('a')
+    a.href = url
+    a.download = `markers-${new Date().toISOString().slice(0, 10)}.edl`
     a.click()
     URL.revokeObjectURL(url)
   }
@@ -227,7 +246,10 @@ export function MarkersView() {
             <button className={`markers-tab ${tab === 'setup' ? 'active' : ''}`} onClick={() => setTab('setup')}>Setup</button>
           </div>
           {sorted.length > 0 && (
-            <button className="btn btn-ghost btn-sm" onClick={exportMarkers}>Export</button>
+            <span className="marker-export-group">
+              <button className="btn btn-ghost btn-sm" onClick={exportCsv}>CSV</button>
+              <button className="btn btn-ghost btn-sm" onClick={exportEdl}>EDL</button>
+            </span>
           )}
         </div>
       </div>
@@ -395,10 +417,18 @@ export function MarkersView() {
 
           <div className="setup-card">
             <h3>Export</h3>
-            <p className="setup-hint">Export markers as CSV for import into DaVinci Resolve, Premiere Pro, or Final Cut Pro.</p>
-            <button className="btn" onClick={exportMarkers} disabled={sorted.length === 0}>
-              Export as CSV ({sorted.length} markers)
-            </button>
+            <p className="setup-hint">Export markers for import into DaVinci Resolve, Premiere Pro, or Final Cut Pro.</p>
+            <div className="setup-export-btns">
+              <button className="btn" onClick={exportCsv} disabled={sorted.length === 0}>
+                Export CSV ({sorted.length} markers)
+              </button>
+              <button className="btn" onClick={exportEdl} disabled={sorted.length === 0}>
+                Export EDL ({sorted.length} markers)
+              </button>
+            </div>
+            <p className="setup-hint" style={{ marginTop: 8 }}>
+              EDL (CMX3600) works directly in DaVinci Resolve: File → Import → Import Markers from EDL...
+            </p>
           </div>
         </div>
       )}
