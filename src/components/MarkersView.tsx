@@ -226,40 +226,6 @@ export function MarkersView() {
     return map[hex.toLowerCase()] || 'Orange'
   }
 
-  const exportCsv = () => {
-    let csv = 'Timecode,Type,Color,Note,Range End\n'
-    for (const m of sorted) {
-      csv += `${m.timecode},${m.markerType},${m.color},"${m.note}",${m.rangeEnd}\n`
-    }
-    const blob = new Blob([csv], { type: 'text/csv' })
-    const url = URL.createObjectURL(blob)
-    const a = document.createElement('a')
-    a.href = url
-    a.download = `markers-${new Date().toISOString().slice(0, 10)}.csv`
-    a.click()
-    URL.revokeObjectURL(url)
-  }
-
-  const exportEdl = () => {
-    let edl = `TITLE: SlateHub Markers Export\nFCM: NON-DROP FRAME\n\n`
-    sorted.forEach((m, i) => {
-      const num = String(i + 1).padStart(3, '0')
-      const end = m.rangeEnd || m.timecode
-      const sanitizedType = m.markerType.replace(/[^a-zA-Z0-9 _-]/g, '')
-      const sanitizedNote = m.note.replace(/[^a-zA-Z0-9 _-]/g, '')
-      edl += `${num}  AX       V     C        ${m.timecode} ${end} ${m.timecode} ${end}\n* MARKER: ${sanitizedType}\n`
-      if (sanitizedNote) edl += `* COMMENT: ${sanitizedNote}\n`
-      edl += '\n'
-    })
-    const blob = new Blob([edl], { type: 'text/plain' })
-    const url = URL.createObjectURL(blob)
-    const a = document.createElement('a')
-    a.href = url
-    a.download = `markers-${new Date().toISOString().slice(0, 10)}.edl`
-    a.click()
-    URL.revokeObjectURL(url)
-  }
-
   const exportResolveScript = () => {
     const markersJson = sorted.map(m => ({
       tc: m.timecode,
@@ -324,9 +290,7 @@ print("Done — markers added to clips")
           </div>
           {sorted.length > 0 && (
             <span className="marker-export-group">
-              <button className="btn btn-ghost btn-sm" onClick={exportCsv}>CSV</button>
-              <button className="btn btn-ghost btn-sm" onClick={exportEdl}>EDL</button>
-              <button className="btn btn-ghost btn-sm" onClick={exportResolveScript}>Resolve</button>
+              <button className="btn btn-ghost btn-sm" onClick={exportResolveScript}>Resolve Script</button>
             </span>
           )}
         </div>
@@ -483,23 +447,12 @@ print("Done — markers added to clips")
 
           <div className="setup-card">
             <h3>Export</h3>
-            <p className="setup-hint">Export markers for import into DaVinci Resolve, Premiere Pro, or Final Cut Pro.</p>
-            <div className="setup-export-btns">
-              <button className="btn" onClick={exportCsv} disabled={sorted.length === 0}>
-                Export CSV
-              </button>
-              <button className="btn" onClick={exportEdl} disabled={sorted.length === 0}>
-                Export EDL
-              </button>
-              <button className="btn" onClick={exportResolveScript} disabled={sorted.length === 0}>
-                Resolve Script
-              </button>
-            </div>
+            <p className="setup-hint">Export as a DaVinci Resolve Python script to add clip markers (stick to clips, not timeline).</p>
+            <button className="btn" onClick={exportResolveScript} disabled={sorted.length === 0}>
+              Export Resolve Script ({sorted.length} markers)
+            </button>
             <p className="setup-hint" style={{ marginTop: 8 }}>
-              <strong>CSV/EDL</strong> — Timeline markers. Import via right-click timeline → Timelines → Import → Timeline Markers from EDL.
-            </p>
-            <p className="setup-hint">
-              <strong>Resolve Script</strong> — Clip markers (stick to clips). Save the .py file to <code>Fusion/Scripts/Comp/</code> in your Resolve user folder, then run via Workspace → Scripts → Comp → filename.py.
+              Save the .py file to <code>Fusion/Scripts/Comp/</code> in your Resolve user folder, then in Resolve: Workspace → Scripts → Comp → filename.py
             </p>
           </div>
         </div>
