@@ -125,6 +125,18 @@ export interface ShotMarker {
   note: string
   shotId: number | null
   createdAt: string
+  rangeEnd: string
+}
+
+export interface MarkerSession {
+  id: string
+  name: string
+  type: 'time-of-day' | 'rec-run'
+  startedAt: string
+  endedAt: string | null
+  markerCount: number
+  cameraBrand: string
+  cameraModel: string
 }
 
 export const MARKER_PRESETS = [
@@ -184,4 +196,5 @@ export interface AppState {
   teleprompterState: TeleprompterState
   highlights: ScriptHighlight[]
   markers: ShotMarker[]
+  sessions: MarkerSession[]
 }

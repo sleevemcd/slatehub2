@@ -1,6 +1,6 @@
 import { createContext, useContext, useReducer, useCallback, useEffect, useRef } from 'react'
 import type { ReactNode } from 'react'
-import type { AppState, ShotRecord, Take, SortKey, ViewState, TeleprompterConfig, TeleprompterState, Theme, Project, Layout, GroupBy, User, CrewMember, Notification, TeleprompterMarker, ScriptHighlight, ShotMarker } from '../types'
+import type { AppState, ShotRecord, Take, SortKey, ViewState, TeleprompterConfig, TeleprompterState, Theme, Project, Layout, GroupBy, User, CrewMember, Notification, TeleprompterMarker, ScriptHighlight, ShotMarker, MarkerSession } from '../types'
 import { fetchSheetCsv } from '../utils/sheet'
 import { parseCSV, rowsToShotRecords } from '../utils/csv'
 
@@ -57,6 +57,10 @@ type Action =
   | { type: 'ADD_MARKER'; marker: ShotMarker }
   | { type: 'REMOVE_MARKER'; id: string }
   | { type: 'SET_MARKERS'; markers: ShotMarker[] }
+  | { type: 'ADD_SESSION'; session: MarkerSession }
+  | { type: 'END_SESSION'; id: string }
+  | { type: 'UPDATE_SESSION'; id: string; updates: Partial<MarkerSession> }
+  | { type: 'SET_SESSIONS'; sessions: MarkerSession[] }
   | { type: 'SET_USER'; user: User }
   | { type: 'LOGIN'; user: User }
   | { type: 'SET_LAYOUT'; layout: Layout }
@@ -207,6 +211,7 @@ const initialState: AppState = {
   teleprompterState: defaultTeleprompterState,
   highlights: [],
   markers: [],
+  sessions: [],
 }
 
 function reducer(state: AppState, action: Action): AppState {
@@ -315,6 +320,14 @@ function reducer(state: AppState, action: Action): AppState {
       return { ...state, markers: state.markers.filter(m => m.id !== action.id) }
     case 'SET_MARKERS':
       return { ...state, markers: action.markers }
+    case 'ADD_SESSION':
+      return { ...state, sessions: [...state.sessions, action.session] }
+    case 'END_SESSION':
+      return { ...state, sessions: state.sessions.map(s => s.id === action.id ? { ...s, endedAt: new Date().toISOString() } : s) }
+    case 'UPDATE_SESSION':
+      return { ...state, sessions: state.sessions.map(s => s.id === action.id ? { ...s, ...action.updates } : s) }
+    case 'SET_SESSIONS':
+      return { ...state, sessions: action.sessions }
     case 'SET_USER':
       return { ...state, currentUser: action.user }
     case 'LOGIN': {
