@@ -2,15 +2,18 @@ import { useState } from 'react'
 import { useApp } from '../context/AppContext'
 
 export function SetupView() {
-  const { updateProject, activeProject } = useApp()
+  const { state, dispatch, updateProject, activeProject } = useApp()
   const p = activeProject
   const [sheetUrl, setSheetUrl] = useState(p?.sheetUrl || '')
   const [docUrl, setDocUrl] = useState(p?.docUrl || '')
   const [relayUrl, setRelayUrl] = useState(p?.relayUrl || '')
+  const [googleApiKey, setGoogleApiKey] = useState(state.teleprompter.googleApiKey || '')
+  const [googleClientId, setGoogleClientId] = useState(state.teleprompter.googleClientId || '')
 
   const handleSave = () => {
     if (!p) return
     updateProject(p.id, { sheetUrl: sheetUrl.trim(), docUrl: docUrl.trim(), relayUrl: relayUrl.trim() })
+    dispatch({ type: 'SET_TELEPROMPTER_CONFIG', config: { googleApiKey: googleApiKey.trim(), googleClientId: googleClientId.trim() } })
   }
 
   if (!p) {
@@ -44,6 +47,22 @@ export function SetupView() {
 
           <label className="setup-label">Apps Script Relay URL (write-back + remote)</label>
           <input className="setup-input" type="text" value={relayUrl} onChange={e => setRelayUrl(e.target.value)} />
+
+          <h3 style={{ margin: '20px 0 8px', fontSize: 14, color: 'var(--text-primary)' }}>Google Integration</h3>
+
+          <label className="setup-label">Google API Key</label>
+          <input className="setup-input" type="text" value={googleApiKey} onChange={e => setGoogleApiKey(e.target.value)}
+            placeholder="AIza..." />
+          <p className="setup-hint" style={{ fontSize: 11, margin: '-4px 0 12px' }}>
+            Create at Google Cloud Console → APIs & Services → Credentials → API Key (enable Picker API + Docs API)
+          </p>
+
+          <label className="setup-label">Google OAuth Client ID</label>
+          <input className="setup-input" type="text" value={googleClientId} onChange={e => setGoogleClientId(e.target.value)}
+            placeholder="xxx.apps.googleusercontent.com" />
+          <p className="setup-hint" style={{ fontSize: 11, margin: '-4px 0 12px' }}>
+            Create OAuth 2.0 Web Client ID, add your domain as Authorized Redirect URI
+          </p>
 
           <button className="btn-primary" onClick={handleSave}>
             Save Settings

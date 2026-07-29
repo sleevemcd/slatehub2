@@ -4,6 +4,7 @@ import { docUrlToTxtUrl } from '../utils/sheet'
 import { getPlainText, buildHighlightedNodes, getBoundingRectAtOffset, caretRangeFromPoint } from '../utils/highlight'
 import type { ScriptHighlight } from '../types'
 import { HIGHLIGHT_COLORS } from '../types'
+import { openGooglePicker } from '../utils/googlePicker'
 
 let nextRow = 1000
 const DEFAULT_COLOR = HIGHLIGHT_COLORS[0].value
@@ -351,6 +352,19 @@ export function ScriptReview() {
       <div className="script-review-header">
         <h2>Script Review</h2>
         <div className="script-review-header-actions">
+          {state.teleprompter.googleApiKey && state.teleprompter.googleClientId && (
+            <button className="btn btn-ghost btn-sm" onClick={() =>
+              openGooglePicker(state.teleprompter.googleApiKey, state.teleprompter.googleClientId, (url, name) => {
+                setDocUrl(url)
+                fetchScript(url)
+                if (activeProject) {
+                  dispatch({ type: 'UPDATE_PROJECT', id: activeProject.id, data: { docUrl: url } })
+                }
+              })
+            }>
+              📁 Browse
+            </button>
+          )}
           <span className="shot-count">{state.highlights.length} highlights</span>
           {state.highlights.length > 0 && (
             <button className="btn btn-ghost btn-sm" onClick={() => goToView('highlights')}>

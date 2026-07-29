@@ -78,6 +78,8 @@ export interface TeleprompterConfig {
   docUrl: string
   sessionId: string
   relayUrl: string
+  googleApiKey: string
+  googleClientId: string
 }
 
 export interface TeleprompterMarker {

@@ -96,7 +96,7 @@ function generateId(): string {
 }
 
 const defaultTeleprompterConfig: TeleprompterConfig = {
-  docUrl: '', sessionId: '', relayUrl: '',
+  docUrl: '', sessionId: '', relayUrl: '', googleApiKey: '', googleClientId: '',
 }
 
 const defaultTeleprompterState: TeleprompterState = {
