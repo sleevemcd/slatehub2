@@ -72,7 +72,7 @@ export interface Take {
 }
 
 export type SortKey = 'shootOrder' | 'type' | 'location' | 'description' | 'shootDay' | 'priority'
-export type ViewState = 'setup' | 'shots' | 'slate' | 'dashboard' | 'crew' | 'teleprompter-setup' | 'teleprompter-view' | 'teleprompter-remote' | 'project-manager' | 'script-review' | 'shoot-schedule' | 'highlights' | 'remove-highlights'
+export type ViewState = 'setup' | 'shots' | 'slate' | 'dashboard' | 'crew' | 'teleprompter-setup' | 'teleprompter-view' | 'teleprompter-remote' | 'project-manager' | 'script-review' | 'shoot-schedule' | 'highlights' | 'remove-highlights' | 'markers'
 
 export interface TeleprompterConfig {
   docUrl: string
@@ -116,10 +116,32 @@ export const HIGHLIGHT_COLORS = [
   { name: 'Red', value: '#ef5350' },
 ]
 
+export interface ShotMarker {
+  id: string
+  projectId: string | null
+  timecode: string
+  color: string
+  markerType: string
+  note: string
+  shotId: number | null
+  createdAt: string
+}
+
+export const MARKER_PRESETS = [
+  { name: 'Good Take', color: '#4caf50', icon: '✓' },
+  { name: 'Highlight', color: '#ffe600', icon: '★' },
+  { name: 'Mistake', color: '#ef5350', icon: '✗' },
+  { name: 'Cut Point', color: '#42a5f5', icon: '✂' },
+  { name: 'Note to Self', color: '#ab47bc', icon: '📝' },
+  { name: 'Audio Issue', color: '#ff9800', icon: '🎤' },
+  { name: 'Lighting', color: '#ff9f00', icon: '💡' },
+  { name: 'Custom', color: '#78909c', icon: '●' },
+]
+
 export type Theme = 'dark' | 'light'
 
 export type Layout = 'grid' | 'list'
-export type GroupBy = '' | 'type' | 'location' | 'shootDay' | 'priority' | 'highlight'
+export type GroupBy = '' | 'type' | 'location' | 'shootDay' | 'priority' | 'highlight' | 'scene'
 
 export interface User {
   name: string
@@ -161,4 +183,5 @@ export interface AppState {
   teleprompter: TeleprompterConfig
   teleprompterState: TeleprompterState
   highlights: ScriptHighlight[]
+  markers: ShotMarker[]
 }

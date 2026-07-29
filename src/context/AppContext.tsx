@@ -1,6 +1,6 @@
 import { createContext, useContext, useReducer, useCallback, useEffect, useRef } from 'react'
 import type { ReactNode } from 'react'
-import type { AppState, ShotRecord, Take, SortKey, ViewState, TeleprompterConfig, TeleprompterState, Theme, Project, Layout, GroupBy, User, CrewMember, Notification, TeleprompterMarker, ScriptHighlight } from '../types'
+import type { AppState, ShotRecord, Take, SortKey, ViewState, TeleprompterConfig, TeleprompterState, Theme, Project, Layout, GroupBy, User, CrewMember, Notification, TeleprompterMarker, ScriptHighlight, ShotMarker } from '../types'
 import { fetchSheetCsv } from '../utils/sheet'
 import { parseCSV, rowsToShotRecords } from '../utils/csv'
 
@@ -54,6 +54,9 @@ type Action =
   | { type: 'UPDATE_HIGHLIGHT'; id: string; data: Partial<ScriptHighlight> }
   | { type: 'SET_HIGHLIGHTS'; highlights: ScriptHighlight[] }
   | { type: 'ADD_HIGHLIGHT_NOTE'; id: string; note: string }
+  | { type: 'ADD_MARKER'; marker: ShotMarker }
+  | { type: 'REMOVE_MARKER'; id: string }
+  | { type: 'SET_MARKERS'; markers: ShotMarker[] }
   | { type: 'SET_USER'; user: User }
   | { type: 'LOGIN'; user: User }
   | { type: 'SET_LAYOUT'; layout: Layout }
@@ -61,8 +64,8 @@ type Action =
   | { type: 'SET_TIMECODE'; timecode: string }
   | { type: 'SET_SHOW_REF'; show: boolean }
   | { type: 'SET_QUICK_MESSAGES'; messages: string[] }
-  | { type: 'ADD_MARKER'; marker: TeleprompterMarker }
-  | { type: 'REMOVE_MARKER'; id: string }
+  | { type: 'ADD_TELEPROMPTER_MARKER'; marker: TeleprompterMarker }
+  | { type: 'REMOVE_TELEPROMPTER_MARKER'; id: string }
   | { type: 'CREATE_PROJECT'; project: Project }
   | { type: 'UPDATE_PROJECT'; id: string; data: Partial<Project> }
   | { type: 'DELETE_PROJECT'; id: string }
@@ -203,6 +206,7 @@ const initialState: AppState = {
   teleprompter: defaultTeleprompterConfig,
   teleprompterState: defaultTeleprompterState,
   highlights: [],
+  markers: [],
 }
 
 function reducer(state: AppState, action: Action): AppState {
@@ -305,6 +309,12 @@ function reducer(state: AppState, action: Action): AppState {
       return { ...state, highlights: action.highlights }
     case 'ADD_HIGHLIGHT_NOTE':
       return { ...state, highlights: state.highlights.map(h => h.id === action.id ? { ...h, note: action.note } : h) }
+    case 'ADD_MARKER':
+      return { ...state, markers: [...state.markers, action.marker] }
+    case 'REMOVE_MARKER':
+      return { ...state, markers: state.markers.filter(m => m.id !== action.id) }
+    case 'SET_MARKERS':
+      return { ...state, markers: action.markers }
     case 'SET_USER':
       return { ...state, currentUser: action.user }
     case 'LOGIN': {
@@ -327,7 +337,7 @@ function reducer(state: AppState, action: Action): AppState {
       return { ...state, showRef: action.show }
     case 'SET_QUICK_MESSAGES':
       return { ...state, quickMessages: action.messages }
-    case 'ADD_MARKER':
+    case 'ADD_TELEPROMPTER_MARKER':
       return {
         ...state,
         teleprompterState: {
@@ -335,7 +345,7 @@ function reducer(state: AppState, action: Action): AppState {
           markers: [...state.teleprompterState.markers, action.marker],
         },
       }
-    case 'REMOVE_MARKER':
+    case 'REMOVE_TELEPROMPTER_MARKER':
       return {
         ...state,
         teleprompterState: {

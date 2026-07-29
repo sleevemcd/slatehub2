@@ -197,7 +197,7 @@ export function TeleprompterView() {
 
   const addMarker = () => {
     if (!markerLabel.trim()) return
-    dispatch({ type: 'ADD_MARKER', marker: { id: generateId(), label: markerLabel.trim(), scrollPosition: posRef.current } })
+    dispatch({ type: 'ADD_TELEPROMPTER_MARKER', marker: { id: generateId(), label: markerLabel.trim(), scrollPosition: posRef.current } })
     setMarkerLabel('')
     setShowMarkerInput(false)
   }

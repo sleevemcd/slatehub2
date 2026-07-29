@@ -11,13 +11,14 @@ const sortOptions: { key: SortKey; label: string }[] = [
   { key: 'shootDay', label: 'Day' },
 ]
 
-const groupOptions: { key: '' | 'type' | 'location' | 'shootDay' | 'priority' | 'highlight'; label: string }[] = [
+const groupOptions: { key: '' | 'type' | 'location' | 'shootDay' | 'priority' | 'highlight' | 'scene'; label: string }[] = [
   { key: '', label: 'No Grouping' },
   { key: 'type', label: 'By Type' },
   { key: 'location', label: 'By Location' },
   { key: 'shootDay', label: 'By Day' },
   { key: 'priority', label: 'By Priority' },
   { key: 'highlight', label: 'By Highlight Color' },
+  { key: 'scene', label: 'By Scene' },
 ]
 
 export function FilterBar() {

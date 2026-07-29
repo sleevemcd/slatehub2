@@ -47,6 +47,8 @@ export function Header() {
           onClick={() => { goToView('script-review'); setShowMenu(false) }}>Script</button>
         <button className={`nav-btn ${state.view === 'dashboard' ? 'active' : ''}`}
           onClick={() => { goToView('dashboard'); setShowMenu(false) }}>Dashboard</button>
+        <button className={`nav-btn ${state.view === 'markers' ? 'active' : ''}`}
+          onClick={() => { goToView('markers'); setShowMenu(false) }}>Markers</button>
       </nav>
 
       <div className="header-right">

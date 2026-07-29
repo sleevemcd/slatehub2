@@ -13,6 +13,7 @@ import { LoginView } from './components/LoginView'
 import { ScriptReview } from './components/ScriptReview'
 import { ShootSchedule } from './components/ShootSchedule'
 import { HighlightsView } from './components/HighlightsView'
+import { MarkersView } from './components/MarkersView'
 import './App.css'
 
 function AppContent() {
@@ -43,6 +44,7 @@ function AppContent() {
         {state.view === 'script-review' && <ScriptReview />}
         {state.view === 'highlights' && <HighlightsView />}
         {state.view === 'remove-highlights' && <HighlightsView />}
+        {state.view === 'markers' && <MarkersView />}
       </main>
     </div>
   )
