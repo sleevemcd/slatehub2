@@ -140,52 +140,39 @@ export function ScriptReview() {
     }
   }
 
-  useEffect(() => {
-    if (!rawHtml) return
-    const onSelectionChange = () => {
-      if (colorPickerHL) return
-      const sel = window.getSelection()
-      if (!sel || sel.isCollapsed || !sel.rangeCount) return
-      const range = sel.getRangeAt(0)
+  const handlePointerUp = () => {
+    if (!rawHtml || colorPickerHL) return
+    const sel = window.getSelection()
+    if (!sel || sel.isCollapsed || !sel.rangeCount) return
+    const range = sel.getRangeAt(0)
 
-      const startNode = range.startContainer
-      const startEl = startNode.nodeType === Node.TEXT_NODE ? startNode.parentElement : startNode as HTMLElement
-      const paraEl = startEl?.closest?.('[data-para-idx]') as HTMLElement | null
-      if (!paraEl) return
-      if (!contentElRef.current?.contains(paraEl)) return
+    const startNode = range.startContainer
+    const startEl = startNode.nodeType === Node.TEXT_NODE ? startNode.parentElement : startNode as HTMLElement
+    const paraEl = startEl?.closest?.('[data-para-idx]') as HTMLElement | null
+    if (!paraEl) return
+    if (!contentElRef.current?.contains(paraEl)) return
 
-      const paraIdx = parseInt(paraEl.getAttribute('data-para-idx') || '-1', 10)
-      if (paraIdx < 0) return
+    const paraIdx = parseInt(paraEl.getAttribute('data-para-idx') || '-1', 10)
+    if (paraIdx < 0) return
 
-      const contentEl = paraEl.querySelector('.script-para-content') as HTMLElement
-      if (!contentEl) return
+    const contentEl = paraEl.querySelector('.script-para-content') as HTMLElement
+    if (!contentEl) return
 
-      const endNode = range.endContainer
-      const endEl = endNode.nodeType === Node.TEXT_NODE ? endNode.parentElement : endNode as HTMLElement
-      const endParaEl = endEl?.closest?.('[data-para-idx]') as HTMLElement | null
-      if (!endParaEl || endParaEl !== paraEl) return
+    const endNode = range.endContainer
+    const endEl = endNode.nodeType === Node.TEXT_NODE ? endNode.parentElement : endNode as HTMLElement
+    const endParaEl = endEl?.closest?.('[data-para-idx]') as HTMLElement | null
+    if (!endParaEl || endParaEl !== paraEl) return
 
-      const startOffset = getTextOffsetInParagraph(contentEl, range.startContainer as Text, range.startOffset)
-      const endOffset = getTextOffsetInParagraph(contentEl, range.endContainer as Text, range.endOffset)
-      if (startOffset >= endOffset) return
+    const startOffset = getTextOffsetInParagraph(contentEl, range.startContainer as Text, range.startOffset)
+    const endOffset = getTextOffsetInParagraph(contentEl, range.endContainer as Text, range.endOffset)
+    if (startOffset >= endOffset) return
 
-      setSelStart({ paraIdx, offset: startOffset })
-      setSelEnd({ paraIdx, offset: endOffset })
+    setSelStart({ paraIdx, offset: startOffset })
+    setSelEnd({ paraIdx, offset: endOffset })
 
-      const rect = range.getBoundingClientRect()
-      setActionsPos({ x: rect.left + rect.width / 2, y: rect.top - 12 })
-      setShowActions(true)
-    }
-
-    document.addEventListener('selectionchange', onSelectionChange)
-    return () => document.removeEventListener('selectionchange', onSelectionChange)
-  }, [rawHtml, colorPickerHL])
-
-  const getParaIdxFromEl = (el: EventTarget | null): number | null => {
-    const paraEl = (el as HTMLElement)?.closest?.('[data-para-idx]') as HTMLElement | null
-    if (!paraEl) return null
-    const idx = parseInt(paraEl.getAttribute('data-para-idx') || '-1', 10)
-    return idx >= 0 ? idx : null
+    const rect = range.getBoundingClientRect()
+    setActionsPos({ x: rect.left + rect.width / 2, y: rect.top - 12 })
+    setShowActions(true)
   }
 
   const handlePointerDown = (e: React.PointerEvent) => {
@@ -400,7 +387,8 @@ export function ScriptReview() {
       {scriptError && <div className="script-error">{scriptError}</div>}
 
       <div className="script-content"
-        onPointerDown={handlePointerDown}>
+        onPointerDown={handlePointerDown}
+        onPointerUp={handlePointerUp}>
         {!rawHtml && !loading && (
           <div className="empty-state">
             <p>Enter a published Google Doc URL or paste script text directly.</p>
