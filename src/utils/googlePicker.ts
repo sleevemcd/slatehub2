@@ -1,23 +1,29 @@
 type PickerCallback = (docUrl: string, docName: string) => void
 
-let pickerLoaded = false
-let loadCallbacks: (() => void)[] = []
+let loaded = false
+let loadQueue: (() => void)[] = []
 
-function loadPickerApi(): Promise<void> {
+function loadLibraries(): Promise<void> {
   return new Promise((resolve) => {
-    if (pickerLoaded) { resolve(); return }
-    loadCallbacks.push(() => resolve())
-    if (loadCallbacks.length > 1) return
-    const script = document.createElement('script')
-    script.src = 'https://apis.google.com/js/api.js'
-    script.onload = () => {
-      gapi.load('picker', () => {
-        pickerLoaded = true
-        loadCallbacks.forEach(cb => cb())
-        loadCallbacks = []
-      })
+    if (loaded) { resolve(); return }
+    loadQueue.push(() => resolve())
+    if (loadQueue.length > 1) return
+
+    const gsi = document.createElement('script')
+    gsi.src = 'https://accounts.google.com/gsi/client'
+    gsi.onload = () => {
+      const api = document.createElement('script')
+      api.src = 'https://apis.google.com/js/api.js'
+      api.onload = () => {
+        gapi.load('picker', () => {
+          loaded = true
+          loadQueue.forEach(cb => cb())
+          loadQueue = []
+        })
+      }
+      document.head.appendChild(api)
     }
-    document.head.appendChild(script)
+    document.head.appendChild(gsi)
   })
 }
 
@@ -43,7 +49,7 @@ function getOAuthToken(clientId: string, callback: () => void) {
 
 export function openGooglePicker(apiKey: string, clientId: string, onPick: PickerCallback) {
   if (!apiKey || !clientId) return
-  loadPickerApi().then(() => {
+  loadLibraries().then(() => {
     getOAuthToken(clientId, () => {
       const picker = new google.picker.PickerBuilder()
         .addView(google.picker.ViewId.DOCUMENTS)
