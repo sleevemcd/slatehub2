@@ -15,12 +15,18 @@ function generateId(): string {
 
 function extractDocBody(html: string): string {
   const bodyMatch = html.match(/<body[^>]*>([\s\S]*?)<\/body>/i)
-  if (!bodyMatch) return ''
-  let content = bodyMatch[1]
+  if (bodyMatch) {
+    let content = bodyMatch[1]
+    content = content.replace(/<style[^>]*>[\s\S]*?<\/style>/gi, '')
+    content = content.replace(/<meta[^>]*>/gi, '')
+    content = content.replace(/<title[^>]*>[\s\S]*?<\/title>/gi, '')
+    content = content.replace(/<span[^>]*>/gi, '<span>')
+    return content
+  }
+  let content = html
   content = content.replace(/<style[^>]*>[\s\S]*?<\/style>/gi, '')
   content = content.replace(/<meta[^>]*>/gi, '')
   content = content.replace(/<title[^>]*>[\s\S]*?<\/title>/gi, '')
-  content = content.replace(/<span[^>]*>/gi, '<span>')
   return content
 }
 
@@ -120,14 +126,16 @@ export function ScriptReview() {
 
   const handlePaste = (e: React.ClipboardEvent) => {
     const html = e.clipboardData.getData('text/html')
+    const text = e.clipboardData.getData('text/plain')
     if (html) {
       e.preventDefault()
       const body = extractDocBody(html)
       if (body) {
-        setPasteText(e.clipboardData.getData('text/plain'))
+        setPasteText(text)
         setRawHtml(body)
         dispatch({ type: 'SET_SCRIPT_CONTENT', content: body })
         setScriptError('')
+        return
       }
     }
   }
