@@ -1,7 +1,7 @@
 import { useState, useEffect, useCallback, useMemo, useRef } from 'react'
 import { useApp } from '../context/AppContext'
 import { docUrlToTxtUrl } from '../utils/sheet'
-import { getPlainText, buildHighlightedNodes, getBoundingRectAtOffset, caretRangeFromPoint } from '../utils/highlight'
+import { getPlainText, buildHighlightedNodes, getTextOffsetInParagraph } from '../utils/highlight'
 import type { ScriptHighlight } from '../types'
 import { HIGHLIGHT_COLORS } from '../types'
 import { openGooglePicker, fetchDocViaDriveApi } from '../utils/googlePicker'
@@ -36,29 +36,33 @@ function wrapParagraphs(html: string): string[] {
   return blocks
 }
 
+function textToHtml(text: string): string {
+  return text
+    .split(/\n\s*\n/)
+    .map(block => block.trim())
+    .filter(Boolean)
+    .map(block => `<p>${block.replace(/\n/g, '<br/>')}</p>`)
+    .join('')
+}
+
 export function ScriptReview() {
   const { state, dispatch, goToView, activeProject } = useApp()
-  const [rawHtml, setRawHtml] = useState('')
+  const [rawHtml, setRawHtml] = useState(state.scriptContent || '')
   const [loading, setLoading] = useState(false)
+  const [scriptError, setScriptError] = useState('')
   const [docUrl, setDocUrl] = useState(activeProject?.docUrl || '')
   const [inputMode, setInputMode] = useState<'url' | 'paste'>('url')
   const [pasteText, setPasteText] = useState('')
 
-  const contentRef = useRef<HTMLDivElement>(null)
   const contentElRef = useRef<HTMLDivElement>(null)
 
   const [showNoteInput, setShowNoteInput] = useState<string | null>(null)
   const [noteText, setNoteText] = useState('')
 
-  const longPressTimer = useRef<ReturnType<typeof setTimeout> | undefined>(undefined)
-  const longPressTriggered = useRef(false)
-
   const [selStart, setSelStart] = useState<{ paraIdx: number; offset: number } | null>(null)
   const [selEnd, setSelEnd] = useState<{ paraIdx: number; offset: number } | null>(null)
   const [showActions, setShowActions] = useState(false)
   const [actionsPos, setActionsPos] = useState({ x: 0, y: 0 })
-
-  const [dragHandle, setDragHandle] = useState<'start' | 'end' | null>(null)
 
   const [colorPickerHL, setColorPickerHL] = useState<string | null>(null)
   const [colorPickerPos2, setColorPickerPos2] = useState({ x: 0, y: 0 })
@@ -74,26 +78,29 @@ export function ScriptReview() {
 
   const fetchScript = useCallback(async (url: string) => {
     setLoading(true)
+    setScriptError('')
     try {
       const txtUrl = docUrlToTxtUrl(url)
-      if (!txtUrl) return
+      if (!txtUrl) { setScriptError('Invalid Google Doc URL'); return }
       const htmlUrl = txtUrl.replace('export?format=txt', 'export?format=html')
       const res = await fetch(htmlUrl, { cache: 'no-cache' })
-      if (!res.ok) return
+      if (!res.ok) { setScriptError(`Failed to fetch doc (${res.status}). Try publishing the doc first.`); return }
       const html = await res.text()
       const body = extractDocBody(html)
       setRawHtml(body)
-    } catch { } finally {
+      dispatch({ type: 'SET_SCRIPT_CONTENT', content: body })
+    } catch {
+      setScriptError('Network error fetching script.')
+    } finally {
       setLoading(false)
     }
-  }, [])
+  }, [dispatch])
 
   useEffect(() => {
     if (activeProject?.docUrl) {
       setDocUrl(activeProject.docUrl)
-      fetchScript(activeProject.docUrl)
     }
-  }, [activeProject?.docUrl, fetchScript])
+  }, [activeProject?.docUrl])
 
   const handleFetch = () => {
     if (!docUrl) return
@@ -103,27 +110,66 @@ export function ScriptReview() {
     }
   }
 
-  const textToHtml = (text: string) => {
-    return text
-      .split(/\n\s*\n/)
-      .map(block => block.trim())
-      .filter(Boolean)
-      .map(block => `<p>${block.replace(/\n/g, '<br/>')}</p>`)
-      .join('')
-  }
-
   const handlePasteLoad = () => {
     if (!pasteText.trim()) return
-    setRawHtml(textToHtml(pasteText))
+    setScriptError('')
+    const html = textToHtml(pasteText)
+    setRawHtml(html)
+    dispatch({ type: 'SET_SCRIPT_CONTENT', content: html })
+  }
+
+  const handlePaste = (e: React.ClipboardEvent) => {
+    const html = e.clipboardData.getData('text/html')
+    if (html) {
+      e.preventDefault()
+      const body = extractDocBody(html)
+      if (body) {
+        setPasteText(e.clipboardData.getData('text/plain'))
+        setRawHtml(body)
+        dispatch({ type: 'SET_SCRIPT_CONTENT', content: body })
+        setScriptError('')
+      }
+    }
   }
 
   useEffect(() => {
-    const onPointerUp = () => {
-      setDragHandle(null)
+    if (!rawHtml) return
+    const onSelectionChange = () => {
+      if (colorPickerHL) return
+      const sel = window.getSelection()
+      if (!sel || sel.isCollapsed || !sel.rangeCount) {
+        return
+      }
+      const range = sel.getRangeAt(0)
+      const paraEl = (range.startContainer as HTMLElement)?.closest?.('[data-para-idx]') as HTMLElement | null
+      if (!paraEl) return
+      if (!contentElRef.current?.contains(paraEl)) return
+
+      const paraIdx = parseInt(paraEl.getAttribute('data-para-idx') || '-1', 10)
+      if (paraIdx < 0) return
+
+      const startOffset = getTextOffsetInParagraph(paraEl, range.startContainer as Text, range.startOffset)
+      let endOffset = 0
+      if (range.startContainer === range.endContainer) {
+        endOffset = getTextOffsetInParagraph(paraEl, range.endContainer as Text, range.endOffset)
+      } else {
+        const endParaEl = (range.endContainer as HTMLElement)?.closest?.('[data-para-idx]') as HTMLElement | null
+        if (!endParaEl || endParaEl !== paraEl) return
+        endOffset = getTextOffsetInParagraph(paraEl, range.endContainer as Text, range.endOffset)
+      }
+      if (startOffset >= endOffset) return
+
+      setSelStart({ paraIdx, offset: startOffset })
+      setSelEnd({ paraIdx, offset: endOffset })
+
+      const rect = range.getBoundingClientRect()
+      setActionsPos({ x: rect.left + rect.width / 2, y: rect.top - 12 })
+      setShowActions(true)
     }
-    window.addEventListener('pointerup', onPointerUp)
-    return () => window.removeEventListener('pointerup', onPointerUp)
-  }, [])
+
+    document.addEventListener('selectionchange', onSelectionChange)
+    return () => document.removeEventListener('selectionchange', onSelectionChange)
+  }, [rawHtml, colorPickerHL])
 
   const getParaIdxFromEl = (el: EventTarget | null): number | null => {
     const paraEl = (el as HTMLElement)?.closest?.('[data-para-idx]') as HTMLElement | null
@@ -132,42 +178,7 @@ export function ScriptReview() {
     return idx >= 0 ? idx : null
   }
 
-  const findOffsetAtPoint = (paraIdx: number, x: number, y: number): number | null => {
-    const paraEl = contentElRef.current?.querySelector(`[data-para-idx="${paraIdx}"]`) as HTMLElement
-    if (!paraEl) return null
-    const range = caretRangeFromPoint(x, y)
-    if (!range) return null
-
-    let offset = 0
-    const walker = document.createTreeWalker(paraEl, NodeFilter.SHOW_TEXT, null)
-    let node: Text | null = walker.firstChild() as Text | null
-    while (node) {
-      if (node === range.startContainer) {
-        return offset + range.startOffset
-      }
-      offset += (node.textContent || '').length
-      node = walker.nextNode() as Text | null
-    }
-    return offset + range.startOffset
-  }
-
-  const getHandleRects = useCallback(() => {
-    if (selStart === null || selEnd === null || selStart.paraIdx !== selEnd.paraIdx) {
-      return { start: null, end: null }
-    }
-    const paraEl = contentElRef.current?.querySelector(`[data-para-idx="${selStart.paraIdx}"]`) as HTMLElement
-    if (!paraEl) return { start: null, end: null }
-
-    const startRect = getBoundingRectAtOffset(paraEl, selStart.offset)
-    const endOffset = Math.max(selEnd.offset, selStart.offset + 1)
-    const endRect = getBoundingRectAtOffset(paraEl, Math.min(endOffset, plainParagraphs[selStart.paraIdx].length))
-    return { start: startRect, end: endRect }
-  }, [selStart, selEnd, plainParagraphs])
-
   const handlePointerDown = (e: React.PointerEvent) => {
-    const paraIdx = getParaIdxFromEl(e.target)
-    if (paraIdx === null) return
-
     const hlEl = (e.target as HTMLElement)?.closest?.('.script-hl') as HTMLElement
     if (hlEl) {
       const hlId = hlEl.getAttribute('data-hl-id')
@@ -179,69 +190,12 @@ export function ScriptReview() {
       }
     }
 
-    if (showActions || colorPickerHL) return
-
-    longPressTriggered.current = false
-    longPressTimer.current = setTimeout(() => {
-      longPressTriggered.current = true
-      const offset = findOffsetAtPoint(paraIdx, e.clientX, e.clientY)
-      if (offset === null) return
-
-      const text = plainParagraphs[paraIdx]
-      let start = offset
-      while (start > 0 && !/\s/.test(text[start - 1])) start--
-      let end = offset
-      while (end < text.length && !/\s/.test(text[end])) end++
-
-      if (start >= end) return
-
-      setSelStart({ paraIdx, offset: start })
-      setSelEnd({ paraIdx, offset: end })
-
-      setTimeout(() => {
-        const rect = getBoundingRectAtOffset(
-          contentElRef.current?.querySelector(`[data-para-idx="${paraIdx}"]`) as HTMLElement,
-          start
-        )
-        if (rect) {
-          setActionsPos({ x: rect.left + rect.width / 2, y: rect.top - 8 })
-          setShowActions(true)
-        }
-      }, 50)
-    }, 600)
-
-    const onUp = () => {
-      clearTimeout(longPressTimer.current)
-      if (!longPressTriggered.current && colorPickerHL === null) {
-        setShowActions(false)
-        setSelStart(null)
-        setSelEnd(null)
-      }
-      window.removeEventListener('pointerup', onUp)
+    if (showActions || colorPickerHL) {
+      setShowActions(false)
+      setSelStart(null)
+      setSelEnd(null)
+      setColorPickerHL(null)
     }
-    window.addEventListener('pointerup', onUp)
-  }
-
-  const handlePointerMove = (e: React.PointerEvent) => {
-    if (!dragHandle || selStart === null || selEnd === null) return
-    e.preventDefault()
-
-    const paraIdx = getParaIdxFromEl(e.target)
-    if (paraIdx === null || paraIdx !== selStart.paraIdx) return
-
-    const offset = findOffsetAtPoint(paraIdx, e.clientX, e.clientY)
-    if (offset === null) return
-
-    if (dragHandle === 'start' && offset < selEnd.offset) {
-      setSelStart({ paraIdx, offset })
-    } else if (dragHandle === 'end' && offset > selStart.offset) {
-      setSelEnd({ paraIdx, offset })
-    }
-  }
-
-  const handleDragStart = (handle: 'start' | 'end') => {
-    setDragHandle(handle)
-    setShowActions(false)
   }
 
   const applyHighlight = () => {
@@ -364,17 +318,21 @@ export function ScriptReview() {
   const isActionMenuOpen = showActions && pendingSelText.length > 0
 
   return (
-    <div className="script-review" ref={contentRef}>
+    <div className="script-review" ref={contentElRef}>
       <div className="script-review-header">
         <h2>Script Review</h2>
         <div className="script-review-header-actions">
           {state.teleprompter.googleApiKey && state.teleprompter.googleClientId && (
-            <button className="btn btn-ghost btn-sm" onClick={async () =>
+            <button className="btn btn-ghost btn-sm" onClick={() =>
               openGooglePicker(state.teleprompter.googleApiKey, state.teleprompter.googleClientId, async (url, name) => {
                 setDocUrl(url)
-                const text = await fetchDocViaDriveApi(url)
-                if (text) {
-                  setRawHtml(textToHtml(text))
+                setScriptError('')
+                const result = await fetchDocViaDriveApi(url)
+                if (result.html) {
+                  setRawHtml(result.html)
+                  dispatch({ type: 'SET_SCRIPT_CONTENT', content: result.html })
+                } else if (result.error) {
+                  setScriptError(result.error)
                 }
                 if (activeProject) {
                   dispatch({ type: 'UPDATE_PROJECT', id: activeProject.id, data: { docUrl: url } })
@@ -416,7 +374,8 @@ export function ScriptReview() {
             <textarea
               value={pasteText}
               onChange={e => setPasteText(e.target.value)}
-              placeholder="Paste your script text here..."
+              onPaste={handlePaste}
+              placeholder="Paste your script text here... (formatting preserved from rich sources)"
               className="input"
               rows={4}
               style={{ width: '100%', resize: 'vertical', fontFamily: 'inherit' }}
@@ -428,10 +387,10 @@ export function ScriptReview() {
         )}
       </div>
 
-      <div className="script-content" ref={contentElRef}
-        onPointerDown={handlePointerDown}
-        onPointerMove={handlePointerMove}
-        style={{ userSelect: dragHandle ? 'none' : undefined }}>
+      {scriptError && <div className="script-error">{scriptError}</div>}
+
+      <div className="script-content"
+        onPointerDown={handlePointerDown}>
         {!rawHtml && !loading && (
           <div className="empty-state">
             <p>Enter a published Google Doc URL or paste script text directly.</p>
@@ -468,38 +427,6 @@ export function ScriptReview() {
             </div>
           )
         })}
-
-        {(isActionMenuOpen) && (() => {
-          const { start: startRect } = getHandleRects()
-          if (!startRect) return null
-          return (
-            <div className="hl-handles-layer">
-              <div
-                className="hl-handle hl-handle-start"
-                style={{ left: startRect.left - 12, top: startRect.top - 12 }}
-                onPointerDown={(e) => { e.stopPropagation(); handleDragStart('start') }}
-              />
-              <div className="hl-handle-line"
-                style={{ left: startRect.left - 1, top: startRect.top, width: 2, height: startRect.height }} />
-            </div>
-          )
-        })()}
-
-        {(isActionMenuOpen) && (() => {
-          const { end: endRect } = getHandleRects()
-          if (!endRect) return null
-          return (
-            <div className="hl-handles-layer">
-              <div
-                className="hl-handle hl-handle-end"
-                style={{ left: endRect.left - 12, top: endRect.top - 12 }}
-                onPointerDown={(e) => { e.stopPropagation(); handleDragStart('end') }}
-              />
-              <div className="hl-handle-line"
-                style={{ left: endRect.left - 1, top: endRect.top, width: 2, height: endRect.height }} />
-            </div>
-          )
-        })()}
       </div>
 
       {isActionMenuOpen && (

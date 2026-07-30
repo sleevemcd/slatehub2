@@ -51,21 +51,24 @@ export function getAccessToken(): string {
   return accessToken
 }
 
-export async function fetchDocViaDriveApi(docUrl: string): Promise<string | null> {
+export async function fetchDocViaDriveApi(docUrl: string): Promise<{ html?: string; error?: string }> {
   const token = accessToken
-  if (!token) return null
+  if (!token) return { error: 'No access token. Try opening the Browse picker again.' }
   const match = docUrl.match(/\/d\/([a-zA-Z0-9_-]+)/)
-  if (!match) return null
+  if (!match) return { error: 'Invalid Google Doc URL' }
   const fileId = match[1]
   try {
     const res = await fetch(
-      `https://www.googleapis.com/drive/v3/files/${fileId}/export?mimeType=text/plain`,
+      `https://www.googleapis.com/drive/v3/files/${fileId}/export?mimeType=text/html`,
       { headers: { Authorization: `Bearer ${token}` } }
     )
-    if (!res.ok) return null
-    return await res.text()
-  } catch {
-    return null
+    if (!res.ok) return { error: `Drive API error (${res.status}). Make sure the doc is accessible.` }
+    const html = await res.text()
+    const bodyMatch = html.match(/<body[^>]*>([\s\S]*?)<\/body>/i)
+    const body = bodyMatch ? bodyMatch[1] : html
+    return { html: body }
+  } catch (e) {
+    return { error: `Network error fetching doc: ${e}` }
   }
 }
 

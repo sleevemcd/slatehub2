@@ -200,4 +200,5 @@ export interface AppState {
   markers: ShotMarker[]
   sessions: MarkerSession[]
   sessionActive: boolean
+  scriptContent: string
 }

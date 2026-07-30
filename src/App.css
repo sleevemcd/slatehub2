@@ -2944,6 +2944,14 @@
   font-family: inherit;
   box-sizing: border-box;
 }
+.script-error {
+  background: #3a1a1a;
+  color: #ff6b6b;
+  padding: 8px 12px;
+  border-radius: 6px;
+  margin-bottom: 12px;
+  font-size: 0.9rem;
+}
 .script-selection-bar {
   display: flex;
   align-items: center;
@@ -3167,41 +3175,6 @@ mark.script-hl {
 .hl-color-actions .hl-action-btn {
   font-size: 12px;
   padding: 6px 10px;
-}
-
-/* Draggable Handles */
-.hl-handles-layer {
-  pointer-events: none;
-}
-.hl-handle {
-  position: fixed;
-  z-index: 502;
-  width: 24px;
-  height: 24px;
-  border-radius: 50%;
-  background: var(--accent);
-  border: 2px solid #fff;
-  box-shadow: 0 2px 8px rgba(0,0,0,0.4);
-  cursor: grab;
-  pointer-events: all;
-  touch-action: none;
-}
-.hl-handle:active {
-  cursor: grabbing;
-  transform: scale(1.15);
-}
-.hl-handle::after {
-  content: '';
-  position: absolute;
-  inset: -8px;
-  border-radius: 50%;
-}
-.hl-handle-line {
-  position: fixed;
-  z-index: 501;
-  pointer-events: none;
-  background: var(--accent);
-  opacity: 0.5;
 }
 
 /* Note Dialog */
@@ -4615,13 +4588,5 @@ mark.script-hl {
 
   .schedule-day-bar {
     width: 100%;
-  }
-
-  .hl-handle {
-    width: 28px;
-    height: 28px;
-  }
-  .hl-handle::after {
-    inset: -6px;
   }
 }
