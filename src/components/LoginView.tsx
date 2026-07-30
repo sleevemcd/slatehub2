@@ -22,14 +22,12 @@ export function LoginView() {
       setError('Name is required')
       return
     }
-    setLoading(true)
     try {
-      const hashed = await hashPassword(password.trim())
+      const hashed = hashPassword(password.trim())
       if (isRegister) {
         const existing = state.savedUsers.find(u => u.email === email.trim())
         if (existing) {
           setError('An account with this email already exists')
-          setLoading(false)
           return
         }
         registerUser({ name: name.trim(), role: '', email: email.trim(), password: hashed })
@@ -37,20 +35,16 @@ export function LoginView() {
         const user = state.savedUsers.find(u => u.email === email.trim())
         if (!user) {
           setError('No account found with this email')
-          setLoading(false)
           return
         }
         if (user.password !== hashed) {
           setError('Incorrect password')
-          setLoading(false)
           return
         }
         login({ name: user.name, role: user.role || '', email: user.email })
       }
     } catch {
       setError('Something went wrong. Try again.')
-    } finally {
-      setLoading(false)
     }
   }
 

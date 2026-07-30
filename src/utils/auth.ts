@@ -1,6 +1,8 @@
-export async function hashPassword(password: string): Promise<string> {
-  const encoder = new TextEncoder()
-  const data = encoder.encode(password)
-  const hash = await crypto.subtle.digest('SHA-256', data)
-  return Array.from(new Uint8Array(hash)).map(b => b.toString(16).padStart(2, '0')).join('')
+export function hashPassword(password: string): string {
+  let hash = 5381
+  for (let i = 0; i < password.length; i++) {
+    hash = ((hash << 5) + hash) + password.charCodeAt(i)
+    hash = hash & hash
+  }
+  return Math.abs(hash).toString(16).padStart(8, '0')
 }
