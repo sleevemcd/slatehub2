@@ -47,6 +47,28 @@ function getOAuthToken(clientId: string, callback: () => void) {
   tokenClient.requestAccessToken()
 }
 
+export function getAccessToken(): string {
+  return accessToken
+}
+
+export async function fetchDocViaDriveApi(docUrl: string): Promise<string | null> {
+  const token = accessToken
+  if (!token) return null
+  const match = docUrl.match(/\/d\/([a-zA-Z0-9_-]+)/)
+  if (!match) return null
+  const fileId = match[1]
+  try {
+    const res = await fetch(
+      `https://www.googleapis.com/drive/v3/files/${fileId}/export?mimeType=text/plain`,
+      { headers: { Authorization: `Bearer ${token}` } }
+    )
+    if (!res.ok) return null
+    return await res.text()
+  } catch {
+    return null
+  }
+}
+
 export function openGooglePicker(apiKey: string, clientId: string, onPick: PickerCallback) {
   if (!apiKey || !clientId) return
   loadLibraries().then(() => {

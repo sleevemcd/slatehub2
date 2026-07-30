@@ -4,7 +4,7 @@ import { docUrlToTxtUrl } from '../utils/sheet'
 import { getPlainText, buildHighlightedNodes, getBoundingRectAtOffset, caretRangeFromPoint } from '../utils/highlight'
 import type { ScriptHighlight } from '../types'
 import { HIGHLIGHT_COLORS } from '../types'
-import { openGooglePicker } from '../utils/googlePicker'
+import { openGooglePicker, fetchDocViaDriveApi } from '../utils/googlePicker'
 
 let nextRow = 1000
 const DEFAULT_COLOR = HIGHLIGHT_COLORS[0].value
@@ -41,6 +41,8 @@ export function ScriptReview() {
   const [rawHtml, setRawHtml] = useState('')
   const [loading, setLoading] = useState(false)
   const [docUrl, setDocUrl] = useState(activeProject?.docUrl || '')
+  const [inputMode, setInputMode] = useState<'url' | 'paste'>('url')
+  const [pasteText, setPasteText] = useState('')
 
   const contentRef = useRef<HTMLDivElement>(null)
   const contentElRef = useRef<HTMLDivElement>(null)
@@ -99,6 +101,20 @@ export function ScriptReview() {
     if (activeProject) {
       dispatch({ type: 'UPDATE_PROJECT', id: activeProject.id, data: { docUrl } })
     }
+  }
+
+  const textToHtml = (text: string) => {
+    return text
+      .split(/\n\s*\n/)
+      .map(block => block.trim())
+      .filter(Boolean)
+      .map(block => `<p>${block.replace(/\n/g, '<br/>')}</p>`)
+      .join('')
+  }
+
+  const handlePasteLoad = () => {
+    if (!pasteText.trim()) return
+    setRawHtml(textToHtml(pasteText))
   }
 
   useEffect(() => {
@@ -353,10 +369,13 @@ export function ScriptReview() {
         <h2>Script Review</h2>
         <div className="script-review-header-actions">
           {state.teleprompter.googleApiKey && state.teleprompter.googleClientId && (
-            <button className="btn btn-ghost btn-sm" onClick={() =>
-              openGooglePicker(state.teleprompter.googleApiKey, state.teleprompter.googleClientId, (url, name) => {
+            <button className="btn btn-ghost btn-sm" onClick={async () =>
+              openGooglePicker(state.teleprompter.googleApiKey, state.teleprompter.googleClientId, async (url, name) => {
                 setDocUrl(url)
-                fetchScript(url)
+                const text = await fetchDocViaDriveApi(url)
+                if (text) {
+                  setRawHtml(textToHtml(text))
+                }
                 if (activeProject) {
                   dispatch({ type: 'UPDATE_PROJECT', id: activeProject.id, data: { docUrl: url } })
                 }
@@ -374,17 +393,39 @@ export function ScriptReview() {
         </div>
       </div>
 
-      <div className="script-url-bar">
-        <input
-          type="text"
-          value={docUrl}
-          onChange={e => setDocUrl(e.target.value)}
-          placeholder="Google Doc URL (File > Share > Publish to web)"
-          className="input"
-        />
-        <button className="btn btn-primary" onClick={handleFetch} disabled={loading || !docUrl}>
-          {loading ? 'Loading...' : 'Load Script'}
-        </button>
+      <div className="script-input-section">
+        <div className="input-mode-tabs">
+          <button className={`btn btn-sm ${inputMode === 'url' ? 'btn-primary' : 'btn-ghost'}`} onClick={() => setInputMode('url')}>From URL</button>
+          <button className={`btn btn-sm ${inputMode === 'paste' ? 'btn-primary' : 'btn-ghost'}`} onClick={() => setInputMode('paste')}>Paste Text</button>
+        </div>
+        {inputMode === 'url' ? (
+          <div className="script-url-bar">
+            <input
+              type="text"
+              value={docUrl}
+              onChange={e => setDocUrl(e.target.value)}
+              placeholder="Google Doc URL (File > Share > Publish to web)"
+              className="input"
+            />
+            <button className="btn btn-primary" onClick={handleFetch} disabled={loading || !docUrl}>
+              {loading ? 'Loading...' : 'Load Script'}
+            </button>
+          </div>
+        ) : (
+          <div className="script-paste-area">
+            <textarea
+              value={pasteText}
+              onChange={e => setPasteText(e.target.value)}
+              placeholder="Paste your script text here..."
+              className="input"
+              rows={4}
+              style={{ width: '100%', resize: 'vertical', fontFamily: 'inherit' }}
+            />
+            <button className="btn btn-primary" onClick={handlePasteLoad} disabled={!pasteText.trim()}>
+              Load Script
+            </button>
+          </div>
+        )}
       </div>
 
       <div className="script-content" ref={contentElRef}
@@ -393,8 +434,9 @@ export function ScriptReview() {
         style={{ userSelect: dragHandle ? 'none' : undefined }}>
         {!rawHtml && !loading && (
           <div className="empty-state">
-            <p>Enter a published Google Doc URL and click Load Script.</p>
-            <p className="empty-hint">Go to File → Share → Publish to web in your Google Doc first.</p>
+            <p>Enter a published Google Doc URL or paste script text directly.</p>
+            <p className="empty-hint">For URL: File → Share → Publish to web in your Google Doc first.</p>
+            <p className="empty-hint">For paste: use the Paste Text tab above.</p>
           </div>
         )}
         {loading && <div className="loading">Loading script...</div>}

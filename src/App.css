@@ -2925,6 +2925,25 @@
 .script-url-bar .input {
   flex: 1;
 }
+.script-input-section {
+  margin-bottom: 16px;
+}
+.input-mode-tabs {
+  display: flex;
+  gap: 4px;
+  margin-bottom: 6px;
+}
+.script-paste-area {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+.script-paste-area textarea {
+  width: 100%;
+  resize: vertical;
+  font-family: inherit;
+  box-sizing: border-box;
+}
 .script-selection-bar {
   display: flex;
   align-items: center;
