@@ -157,13 +157,16 @@ export function ScriptReview() {
       const paraIdx = parseInt(paraEl.getAttribute('data-para-idx') || '-1', 10)
       if (paraIdx < 0) return
 
+      const contentEl = paraEl.querySelector('.script-para-content') as HTMLElement
+      if (!contentEl) return
+
       const endNode = range.endContainer
       const endEl = endNode.nodeType === Node.TEXT_NODE ? endNode.parentElement : endNode as HTMLElement
       const endParaEl = endEl?.closest?.('[data-para-idx]') as HTMLElement | null
       if (!endParaEl || endParaEl !== paraEl) return
 
-      const startOffset = getTextOffsetInParagraph(paraEl, range.startContainer as Text, range.startOffset)
-      const endOffset = getTextOffsetInParagraph(paraEl, range.endContainer as Text, range.endOffset)
+      const startOffset = getTextOffsetInParagraph(contentEl, range.startContainer as Text, range.startOffset)
+      const endOffset = getTextOffsetInParagraph(contentEl, range.endContainer as Text, range.endOffset)
       if (startOffset >= endOffset) return
 
       setSelStart({ paraIdx, offset: startOffset })
