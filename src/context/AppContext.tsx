@@ -67,6 +67,7 @@ type Action =
   | { type: 'SET_SCRIPT_CONTENT'; content: string }
   | { type: 'SET_USER'; user: User }
   | { type: 'LOGIN'; user: User }
+  | { type: 'REGISTER'; user: User }
   | { type: 'SET_LAYOUT'; layout: Layout }
   | { type: 'SET_GROUP_BY'; groupBy: GroupBy }
   | { type: 'SET_TIMECODE'; timecode: string }
@@ -172,6 +173,18 @@ function saveSavedUsers(users: User[]) {
   localStorage.setItem('slatehub-saved-users', JSON.stringify(users))
 }
 
+function loadSession(): User {
+  try {
+    const users = loadSavedUsers()
+    const email = localStorage.getItem('slatehub-session-email')
+    if (email && users.length > 0) {
+      const user = users.find(u => u.email === email)
+      if (user) return { name: user.name, role: user.role || '', email: user.email }
+    }
+  } catch {}
+  return { name: '', role: '' }
+}
+
 function markerStorageKey(projectId: string | null): string {
   return `slatehub-markers-${projectId || 'default'}`
 }
@@ -222,7 +235,7 @@ const initialState: AppState = {
   takes: [],
   activeShot: null,
   activeTake: 1,
-  currentUser: { name: '', role: '' },
+  currentUser: loadSession(),
   savedUsers: loadSavedUsers(),
   crewMembers: [],
   notifications: [],
@@ -369,15 +382,23 @@ function reducer(state: AppState, action: Action): AppState {
     case 'SET_SCRIPT_CONTENT':
       return { ...state, scriptContent: action.content }
     case 'SET_USER':
+      localStorage.setItem('slatehub-session-email', action.user.email || '')
       return { ...state, currentUser: action.user }
     case 'LOGIN': {
-      const exists = state.savedUsers.find(u => u.name === action.user.name)
+      const exists = state.savedUsers.find(u => u.email === action.user.email)
       const saved = exists ? state.savedUsers : [...state.savedUsers, action.user]
       saveSavedUsers(saved)
+      localStorage.setItem('slatehub-session-email', action.user.email || '')
+      return { ...state, currentUser: action.user, savedUsers: saved }
+    }
+    case 'REGISTER': {
+      const saved = [...state.savedUsers.filter(u => u.email !== action.user.email), action.user]
+      saveSavedUsers(saved)
+      localStorage.setItem('slatehub-session-email', action.user.email || '')
       const crewExists = state.crewMembers.find(m => m.name === action.user.name)
       const updatedCrew = crewExists
-        ? state.crewMembers.map(m => m.name === action.user.name ? { ...m, role: action.user.role, active: true } : m)
-        : [...state.crewMembers, { name: action.user.name, role: action.user.role, active: true }]
+        ? state.crewMembers.map(m => m.name === action.user.name ? { ...m, role: action.user.role || 'Crew', active: true } : m)
+        : [...state.crewMembers, { name: action.user.name, role: action.user.role || 'Crew', active: true }]
       return { ...state, currentUser: action.user, savedUsers: saved, crewMembers: updatedCrew }
     }
     case 'SET_LAYOUT':
@@ -647,6 +668,11 @@ export function AppProvider({ children }: { children: ReactNode }) {
     dispatch({ type: 'SET_VIEW', view: state.activeProjectId ? 'shots' : 'project-manager' })
   }, [state.activeProjectId])
 
+  const registerUser = useCallback((user: User) => {
+    dispatch({ type: 'REGISTER', user })
+    dispatch({ type: 'SET_VIEW', view: state.activeProjectId ? 'shots' : 'project-manager' })
+  }, [state.activeProjectId])
+
   const goToView = useCallback((view: ViewState) => {
     dispatch({ type: 'SET_VIEW', view })
   }, [])
@@ -877,7 +903,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
     <AppContext.Provider value={{
       state, dispatch, loadShots, openSlate, closeSlate, goToView, goToNextShot, goToPrevShot,
       recordTake, updateTake, toggleDone, setShotPriority, deleteShot, deleteShots, updateShot, reorderShots,
-      toggleTheme, createProject, switchProject, deleteProject, updateProject, activeProject, login,
+      toggleTheme, createProject, switchProject, deleteProject, updateProject, activeProject, login, registerUser,
       updateShotCrew, addCrewMember, removeCrewMember, updateCrewMember,
       addNotification, markNotificationRead, clearNotifications, triggerOnDeck,
     }}>

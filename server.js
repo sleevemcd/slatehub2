@@ -8,6 +8,9 @@ const DATA_DIR = process.env.DATA_DIR || '/data'
 const DATA_FILE = path.join(DATA_DIR, 'slatehub-data.json')
 const PORT = 80
 
+// In-memory relay state by session ID
+const relayStore = new Map()
+
 const MIME = {
   '.html': 'text/html',
   '.js': 'application/javascript',
@@ -65,6 +68,45 @@ const server = http.createServer((req, res) => {
         res.end(JSON.stringify({ error: 'Invalid JSON' }))
       }
     })
+    return
+  }
+
+  if (req.url === '/api/relay' && req.method === 'POST') {
+    let body = ''
+    req.on('data', chunk => body += chunk)
+    req.on('end', () => {
+      try {
+        const parsed = JSON.parse(body)
+        const sessionId = parsed.sessionId
+        if (sessionId) {
+          relayStore.set(sessionId, {
+            scrollPosition: parsed.scrollPosition ?? 0,
+            speed: parsed.speed ?? 5,
+            playing: parsed.playing ?? false,
+            updatedAt: Date.now(),
+          })
+        }
+        res.writeHead(200, { ...headers, 'Content-Type': 'application/json' })
+        res.end(JSON.stringify({ success: true }))
+      } catch {
+        res.writeHead(400, { ...headers, 'Content-Type': 'application/json' })
+        res.end(JSON.stringify({ success: false, error: 'Invalid JSON' }))
+      }
+    })
+    return
+  }
+
+  if (req.url?.startsWith('/api/relay') && req.method === 'GET') {
+    const url = new URL(req.url, `http://${req.headers.host}`)
+    const sessionId = url.searchParams.get('sessionId')
+    if (sessionId && relayStore.has(sessionId)) {
+      const state = relayStore.get(sessionId)
+      res.writeHead(200, { ...headers, 'Content-Type': 'application/json' })
+      res.end(JSON.stringify({ success: true, result: state }))
+    } else {
+      res.writeHead(200, { ...headers, 'Content-Type': 'application/json' })
+      res.end(JSON.stringify({ success: true, result: { scrollPosition: 0, speed: 5, playing: false } }))
+    }
     return
   }
 

@@ -24,11 +24,12 @@ export function TeleprompterSetup() {
     if (!trimmed) return
 
     localStorage.setItem('slatehub-tp-doc-url', trimmed)
+    const finalRelay = relayUrl.trim() || `${window.location.origin}/api/relay`
     if (relayUrl.trim()) {
       localStorage.setItem('slatehub-tp-relay-url', relayUrl.trim())
     }
 
-    dispatch({ type: 'SET_TELEPROMPTER_CONFIG', config: { docUrl: trimmed, sessionId, relayUrl: relayUrl.trim() } })
+    dispatch({ type: 'SET_TELEPROMPTER_CONFIG', config: { docUrl: trimmed, sessionId, relayUrl: finalRelay } })
     dispatch({ type: 'SET_VIEW', view: mode === 'display' ? 'teleprompter-view' : 'teleprompter-remote' })
   }
 
@@ -59,13 +60,13 @@ export function TeleprompterSetup() {
           />
 
           <label className="setup-label">
-            Relay URL (optional — for remote scroll)
-            <span className="label-hint">Paste your Apps Script web app URL</span>
+            Relay URL (optional)
+            <span className="label-hint">Leave empty for automatic relay via NAS</span>
           </label>
           <input
             className="setup-input"
             type="text"
-            placeholder="https://script.google.com/macros/s/..."
+            placeholder="https://script.google.com/macros/s/... (or leave empty)"
             value={relayUrl}
             onChange={e => setRelayUrl(e.target.value)}
           />
@@ -135,32 +136,23 @@ export function TeleprompterSetup() {
       <div className="setup-card setup-columns-card">
         <h3>Remote Scroll Setup</h3>
         <p>
-          For remote scroll, both devices need the <strong>same Session ID</strong> and the
-          <strong>Relay URL</strong> from your deployed Apps Script.
+          For remote scroll, both devices need the <strong>same Session ID</strong>.
+          The relay route is handled automatically by the NAS server — no external service needed.
         </p>
 
-        <h4 style={{ marginTop: 16 }}>What is the Relay URL?</h4>
+        <h4 style={{ marginTop: 16 }}>How it works</h4>
         <p>
-          It's an HTTP endpoint (Google Apps Script Web App) that passes scroll/speed/play commands
-          between your display device and a phone/tablet acting as remote control.
+          Both devices connect to the app (via your WiFi network or the Cloudflare tunnel).
+          The remote control sends scroll/speed commands to the NAS, and the display device
+          picks them up. Works on the same WiFi, or across the internet through the tunnel.
         </p>
 
-        <h4 style={{ marginTop: 16 }}>How to set it up</h4>
-        <ol>
-          <li>Open the <code>apps-script/Code.gs</code> file from this project</li>
-          <li>In Google Sheets, go to <strong>Extensions → Apps Script</strong></li>
-          <li>Paste the code, save, and click <strong>Deploy → New deployment</strong></li>
-          <li>Choose <strong>Web app</strong>, set "Execute as: Me", "Who has access: Anyone"</li>
-          <li>Copy the deployment URL — that's your Relay URL</li>
-        </ol>
-
-        <h4 style={{ marginTop: 16 }}>How to test if it's working</h4>
+        <h4 style={{ marginTop: 16 }}>How to test</h4>
         <ul>
           <li>Open the Teleprompter on your main device (Display mode)</li>
-          <li>Open the Remote Control on another phone/tablet (same session ID, same relay URL)</li>
+          <li>Open the Remote Control on another phone/tablet (same session ID)</li>
           <li>Drag the scroll bar on the remote — the display should follow</li>
           <li>A green dot (●) shows when connected; a red dot (○) means no connection</li>
-          <li>If it's not working, check: both devices have the same Session ID and Relay URL, and the Apps Script is deployed as "Anyone" access</li>
         </ul>
       </div>
     </div>

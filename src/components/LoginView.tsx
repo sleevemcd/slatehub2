@@ -1,64 +1,134 @@
 import { useState } from 'react'
 import { useApp } from '../context/AppContext'
+import { hashPassword } from '../utils/auth'
 
 export function LoginView() {
-  const { state, login } = useApp()
+  const { state, login, registerUser } = useApp()
+  const [email, setEmail] = useState('')
   const [name, setName] = useState('')
-  const [role, setRole] = useState('')
+  const [password, setPassword] = useState('')
+  const [isRegister, setIsRegister] = useState(false)
+  const [error, setError] = useState('')
+  const [loading, setLoading] = useState(false)
 
-  const commonRoles = [
-    'Director', 'DP', '1st AC', '2nd AC', 'Sound Op',
-    'Gaffer', 'Grip', 'Script Supervisor', 'BTS', 'PA',
-  ]
-
-  const handleLogin = (user: { name: string; role: string }) => {
-    login({ name: user.name.trim(), role: user.role.trim() })
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault()
+    setError('')
+    if (!email.trim() || !password.trim()) {
+      setError('Email and password are required')
+      return
+    }
+    if (isRegister && !name.trim()) {
+      setError('Name is required')
+      return
+    }
+    setLoading(true)
+    try {
+      const hashed = await hashPassword(password.trim())
+      if (isRegister) {
+        const existing = state.savedUsers.find(u => u.email === email.trim())
+        if (existing) {
+          setError('An account with this email already exists')
+          setLoading(false)
+          return
+        }
+        registerUser({ name: name.trim(), role: '', email: email.trim(), password: hashed })
+      } else {
+        const user = state.savedUsers.find(u => u.email === email.trim())
+        if (!user) {
+          setError('No account found with this email')
+          setLoading(false)
+          return
+        }
+        if (user.password !== hashed) {
+          setError('Incorrect password')
+          setLoading(false)
+          return
+        }
+        login({ name: user.name, role: user.role || '', email: user.email })
+      }
+    } catch {
+      setError('Something went wrong. Try again.')
+    } finally {
+      setLoading(false)
+    }
   }
 
-  const handleSubmit = (e: React.FormEvent) => {
-    e.preventDefault()
-    if (name.trim()) handleLogin({ name: name.trim(), role: role.trim() })
+  const fillUser = (u: { email?: string; name?: string }) => {
+    setEmail(u.email || '')
+    setName(u.name || '')
+    setPassword('')
+    setError('')
   }
 
   return (
     <div className="login-view">
       <div className="login-card">
-        <div className="login-icon">🎬</div>
-        <h1 className="login-title">SlateHub</h1>
-        <p className="login-subtitle">Digital Slating & Crew Coordination</p>
+        <div className="login-logo">SLATEHUB</div>
+        <p className="login-subtitle">Production Management</p>
 
-        {state.savedUsers.length > 0 && (
-          <div className="login-saved">
-            <p className="login-label">Welcome back</p>
-            <div className="login-users">
-              {state.savedUsers.map(u => (
-                <button key={u.name} className="login-user-btn" onClick={() => handleLogin(u)}>
-                  <span className="login-user-avatar">{u.name[0].toUpperCase()}</span>
+        {state.savedUsers.length > 0 && !isRegister && (
+          <div className="login-users">
+            <p className="login-hint">Registered users</p>
+            <div className="login-user-list">
+              {state.savedUsers.map((u, i) => (
+                <button key={i} className="login-user-btn" onClick={() => fillUser(u)}>
+                  <span className="login-user-avatar">{(u.name || '?')[0].toUpperCase()}</span>
                   <span className="login-user-name">{u.name}</span>
-                  {u.role && <span className="login-user-role">{u.role}</span>}
+                  <span className="login-user-email">{u.email}</span>
                 </button>
               ))}
             </div>
-            <div className="login-divider"><span>or new face</span></div>
           </div>
         )}
 
         <form className="login-form" onSubmit={handleSubmit}>
-          <p className="login-label">Who are you?</p>
-          <input className="input login-input" placeholder="Your name" value={name}
-            onChange={e => setName(e.target.value)} autoFocus={state.savedUsers.length === 0}
-            required />
-          <div className="login-role-row">
-            <input className="input login-input" placeholder="Role (optional)" value={role}
-              onChange={e => setRole(e.target.value)} list="common-roles" />
-            <datalist id="common-roles">
-              {commonRoles.map(r => <option key={r} value={r} />)}
-            </datalist>
-          </div>
-          <button className="btn login-btn" type="submit" disabled={!name.trim()}>
-            Enter
+          <label className="login-label">
+            Email
+            <input
+              className="login-input"
+              type="email"
+              value={email}
+              onChange={e => setEmail(e.target.value)}
+              placeholder="you@example.com"
+              autoFocus
+            />
+          </label>
+
+          {isRegister && (
+            <label className="login-label">
+              Name
+              <input
+                className="login-input"
+                type="text"
+                value={name}
+                onChange={e => setName(e.target.value)}
+                placeholder="Your name"
+              />
+            </label>
+          )}
+
+          <label className="login-label">
+            Password
+            <input
+              className="login-input"
+              type="password"
+              value={password}
+              onChange={e => setPassword(e.target.value)}
+              placeholder={isRegister ? 'Create a password' : 'Enter your password'}
+            />
+          </label>
+
+          {error && <div className="login-error">{error}</div>}
+
+          <button className="btn-primary login-btn" type="submit" disabled={loading}>
+            {loading ? 'Please wait...' : isRegister ? 'Create Account' : 'Sign In'}
           </button>
         </form>
+
+        <button className="login-toggle" onClick={() => { setIsRegister(!isRegister); setError('') }}>
+          {isRegister ? 'Already have an account? Sign in' : "Don't have an account? Register"}
+        </button>
       </div>
     </div>
   )
