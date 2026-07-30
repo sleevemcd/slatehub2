@@ -9,9 +9,8 @@ export function LoginView() {
   const [password, setPassword] = useState('')
   const [isRegister, setIsRegister] = useState(false)
   const [error, setError] = useState('')
-  const [loading, setLoading] = useState(false)
 
-  const handleSubmit = async (e: React.FormEvent) => {
+  const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault()
     setError('')
     if (!email.trim() || !password.trim()) {
@@ -115,8 +114,8 @@ export function LoginView() {
 
           {error && <div className="login-error">{error}</div>}
 
-          <button className="btn-primary login-btn" type="submit" disabled={loading}>
-            {loading ? 'Please wait...' : isRegister ? 'Create Account' : 'Sign In'}
+          <button className="btn-primary login-btn" type="submit">
+            {isRegister ? 'Create Account' : 'Sign In'}
           </button>
         </form>
 
