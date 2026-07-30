@@ -199,4 +199,5 @@ export interface AppState {
   highlights: ScriptHighlight[]
   markers: ShotMarker[]
   sessions: MarkerSession[]
+  sessionActive: boolean
 }

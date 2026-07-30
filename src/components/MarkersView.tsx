@@ -59,7 +59,6 @@ function MarkerRow({ marker, onUpdate, onDelete }: MarkerRowProps) {
 export function MarkersView() {
   const { state, dispatch, goToView } = useApp()
   const [tab, setTab] = useState<'live' | 'history' | 'setup'>('live')
-  const [sessionActive, setSessionActive] = useState(false)
   const [sessionName, setSessionName] = useState('')
   const [currentTc, setCurrentTc] = useState(formatTcFromDate(new Date()))
   const [holdTimer, setHoldTimer] = useState<ReturnType<typeof setTimeout> | undefined>(undefined)
@@ -86,13 +85,13 @@ export function MarkersView() {
       cameraModel: '',
     }
     dispatch({ type: 'ADD_SESSION', session })
-    setSessionActive(true)
+    dispatch({ type: 'SET_SESSION_ACTIVE', active: true })
   }
 
   const stopSession = () => {
     if (currentSession) {
       dispatch({ type: 'END_SESSION', id: currentSession.id })
-      if (sessionActive) {
+      if (state.sessionActive) {
         dispatch({ type: 'ADD_MARKER', marker: {
           id: generateId(),
           projectId: state.activeProjectId,
@@ -106,12 +105,12 @@ export function MarkersView() {
         }})
       }
     }
-    setSessionActive(false)
+    dispatch({ type: 'SET_SESSION_ACTIVE', active: false })
     cancelAnimationFrame(animRef.current)
   }
 
   useEffect(() => {
-    if (!sessionActive) {
+    if (!state.sessionActive) {
       cancelAnimationFrame(animRef.current)
       return
     }
@@ -121,7 +120,7 @@ export function MarkersView() {
     }
     animRef.current = requestAnimationFrame(tick)
     return () => cancelAnimationFrame(animRef.current)
-  }, [sessionActive])
+  }, [state.sessionActive])
 
   const addMarker = useCallback((presetName: string) => {
     const preset = MARKER_PRESETS.find(p => p.name === presetName) || MARKER_PRESETS[7]
@@ -177,7 +176,7 @@ export function MarkersView() {
   }, [dispatch])
 
   const handlePointerDown = (presetName: string) => {
-    if (!sessionActive) return
+    if (!state.sessionActive) return
     setHoldMarkerType(presetName)
     setHoldStartTc(currentTc)
     setHolding(false)
@@ -300,7 +299,7 @@ print(f"Done — {count} markers added to clips")
 
       {tab === 'live' && (
         <>
-          {!sessionActive ? (
+          {!state.sessionActive ? (
             <div className="marker-session-start">
               <div className="marker-session-start-content">
                 <div className="marker-tc-big">{currentTc}</div>

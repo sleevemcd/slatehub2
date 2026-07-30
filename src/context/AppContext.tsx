@@ -63,6 +63,7 @@ type Action =
   | { type: 'REMOVE_SESSION'; id: string }
   | { type: 'UPDATE_SESSION'; id: string; updates: Partial<MarkerSession> }
   | { type: 'SET_SESSIONS'; sessions: MarkerSession[] }
+  | { type: 'SET_SESSION_ACTIVE'; active: boolean }
   | { type: 'SET_USER'; user: User }
   | { type: 'LOGIN'; user: User }
   | { type: 'SET_LAYOUT'; layout: Layout }
@@ -240,6 +241,7 @@ const initialState: AppState = {
   highlights: [],
   markers: [],
   sessions: [],
+  sessionActive: false,
 }
 
 function reducer(state: AppState, action: Action): AppState {
@@ -360,6 +362,8 @@ function reducer(state: AppState, action: Action): AppState {
       return { ...state, sessions: state.sessions.map(s => s.id === action.id ? { ...s, ...action.updates } : s) }
     case 'SET_SESSIONS':
       return { ...state, sessions: action.sessions }
+    case 'SET_SESSION_ACTIVE':
+      return { ...state, sessionActive: action.active }
     case 'SET_USER':
       return { ...state, currentUser: action.user }
     case 'LOGIN': {
