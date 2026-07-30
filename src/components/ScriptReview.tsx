@@ -137,26 +137,25 @@ export function ScriptReview() {
     const onSelectionChange = () => {
       if (colorPickerHL) return
       const sel = window.getSelection()
-      if (!sel || sel.isCollapsed || !sel.rangeCount) {
-        return
-      }
+      if (!sel || sel.isCollapsed || !sel.rangeCount) return
       const range = sel.getRangeAt(0)
-      const paraEl = (range.startContainer as HTMLElement)?.closest?.('[data-para-idx]') as HTMLElement | null
+
+      const startNode = range.startContainer
+      const startEl = startNode.nodeType === Node.TEXT_NODE ? startNode.parentElement : startNode as HTMLElement
+      const paraEl = startEl?.closest?.('[data-para-idx]') as HTMLElement | null
       if (!paraEl) return
       if (!contentElRef.current?.contains(paraEl)) return
 
       const paraIdx = parseInt(paraEl.getAttribute('data-para-idx') || '-1', 10)
       if (paraIdx < 0) return
 
+      const endNode = range.endContainer
+      const endEl = endNode.nodeType === Node.TEXT_NODE ? endNode.parentElement : endNode as HTMLElement
+      const endParaEl = endEl?.closest?.('[data-para-idx]') as HTMLElement | null
+      if (!endParaEl || endParaEl !== paraEl) return
+
       const startOffset = getTextOffsetInParagraph(paraEl, range.startContainer as Text, range.startOffset)
-      let endOffset = 0
-      if (range.startContainer === range.endContainer) {
-        endOffset = getTextOffsetInParagraph(paraEl, range.endContainer as Text, range.endOffset)
-      } else {
-        const endParaEl = (range.endContainer as HTMLElement)?.closest?.('[data-para-idx]') as HTMLElement | null
-        if (!endParaEl || endParaEl !== paraEl) return
-        endOffset = getTextOffsetInParagraph(paraEl, range.endContainer as Text, range.endOffset)
-      }
+      const endOffset = getTextOffsetInParagraph(paraEl, range.endContainer as Text, range.endOffset)
       if (startOffset >= endOffset) return
 
       setSelStart({ paraIdx, offset: startOffset })
