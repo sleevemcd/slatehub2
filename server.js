@@ -111,11 +111,12 @@ const server = http.createServer((req, res) => {
     const sessionId = url.searchParams.get('sessionId')
     if (sessionId && relayStore.has(sessionId)) {
       const state = relayStore.get(sessionId)
+      const age = Date.now() - state.updatedAt
       res.writeHead(200, { ...headers, 'Content-Type': 'application/json' })
-      res.end(JSON.stringify({ success: true, result: state }))
+      res.end(JSON.stringify({ success: true, result: { ...state, age } }))
     } else {
       res.writeHead(200, { ...headers, 'Content-Type': 'application/json' })
-      res.end(JSON.stringify({ success: true, result: { scrollPosition: 0, speed: 5, playing: false } }))
+      res.end(JSON.stringify({ success: true, result: { scrollPosition: 0, speed: 5, playing: false, age: null } }))
     }
     return
   }

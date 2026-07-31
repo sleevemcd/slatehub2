@@ -76,7 +76,7 @@ export function ScriptReview() {
     } else if (!rawHtml && state.scriptContent) {
       setRawHtml(state.scriptContent)
     }
-  }, [state.activeProjectId, rawHtml])
+  }, [state.activeProjectId, rawHtml, state.scriptContent])
 
   const [showNoteInput, setShowNoteInput] = useState<string | null>(null)
   const [noteText, setNoteText] = useState('')

@@ -1,8 +1,8 @@
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512">
-  <rect width="512" height="512" rx="64" fill="#1a1a2e"/>
-  <rect x="64" y="116" width="384" height="280" rx="16" fill="#2e2e4a"/>
-  <rect x="64" y="116" width="384" height="60" rx="16" fill="#f5c542"/>
-  <rect x="64" y="116" width="384" height="10" fill="#1a1a2e"/>
-  <polygon points="200,280 300,248 300,312" fill="#f5c542"/>
-  <text x="256" y="460" text-anchor="middle" font-family="system-ui" font-size="52" font-weight="700" fill="#f5c542">SLATEHUB</text>
+  <rect width="512" height="512" rx="96" fill="#0d0d0d"/>
+  <rect x="112" y="120" width="288" height="208" rx="16" fill="#1c1c1c"/>
+  <rect x="112" y="120" width="288" height="48" rx="16" fill="#ff6b35"/>
+  <rect x="112" y="168" width="288" height="8" fill="#0d0d0d"/>
+  <polygon points="204,232 292,204 292,260" fill="#ff6b35"/>
+  <text x="256" y="368" text-anchor="middle" font-family="-apple-system, system-ui, sans-serif" font-size="44" font-weight="700" fill="#ff6b35">SLATE</text>
 </svg>

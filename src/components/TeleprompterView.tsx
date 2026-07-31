@@ -88,19 +88,22 @@ export function TeleprompterView() {
     }
     const remoteState = await fetchTeleprompterState(teleprompter.relayUrl, teleprompter.sessionId)
     if (remoteState) {
-      setConnected(true)
-      if (remoteState.playing !== undefined && remoteState.playing !== playingRef.current) {
-        setPlaying(remoteState.playing)
-      }
-      if (remoteState.speed !== undefined && remoteState.speed !== speedRef.current) {
-        setSpeed(remoteState.speed)
-        dispatch({ type: 'SET_TELEPROMPTER_STATE', state: { speed: remoteState.speed } })
-      }
-      if (remoteState.scrollPosition !== undefined && scrollRef.current) {
-        const maxScroll = scrollRef.current.scrollHeight - scrollRef.current.clientHeight
-        if (maxScroll > 0) {
-          scrollRef.current.scrollTop = remoteState.scrollPosition * maxScroll
-          posRef.current = remoteState.scrollPosition
+      const fresh = remoteState.age !== undefined && remoteState.age !== null && remoteState.age < 4000
+      setConnected(fresh)
+      if (fresh) {
+        if (remoteState.playing !== undefined && remoteState.playing !== playingRef.current) {
+          setPlaying(remoteState.playing)
+        }
+        if (remoteState.speed !== undefined && remoteState.speed !== speedRef.current) {
+          setSpeed(remoteState.speed)
+          dispatch({ type: 'SET_TELEPROMPTER_STATE', state: { speed: remoteState.speed } })
+        }
+        if (remoteState.scrollPosition !== undefined && scrollRef.current) {
+          const maxScroll = scrollRef.current.scrollHeight - scrollRef.current.clientHeight
+          if (maxScroll > 0) {
+            scrollRef.current.scrollTop = remoteState.scrollPosition * maxScroll
+            posRef.current = remoteState.scrollPosition
+          }
         }
       }
     } else {

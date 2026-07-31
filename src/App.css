@@ -1,8 +1,15 @@
 /* === Layout === */
+:root {
+  --safe-top: env(safe-area-inset-top, 0px);
+  --safe-bottom: env(safe-area-inset-bottom, 0px);
+}
+
 .app {
   min-height: 100vh;
+  min-height: 100dvh;
   display: flex;
   flex-direction: column;
+  padding-bottom: var(--safe-bottom);
 }
 
 .app-main {
@@ -15,7 +22,7 @@
   display: flex;
   align-items: center;
   justify-content: space-between;
-  padding: 12px 24px;
+  padding: calc(12px + var(--safe-top)) 24px;
   background: var(--header-bg);
   border-bottom: 3px solid var(--accent);
   position: sticky;
@@ -1346,7 +1353,7 @@
   display: flex;
   align-items: center;
   justify-content: space-between;
-  padding: 8px 16px;
+  padding: calc(8px + var(--safe-top)) 16px;
   background: rgba(26, 26, 46, 0.95);
   border-bottom: 1px solid var(--border);
   flex-shrink: 0;
@@ -1474,7 +1481,7 @@
 
 .tp-bottom-bar {
   flex-shrink: 0;
-  padding: 8px 16px;
+  padding: calc(8px + var(--safe-bottom)) 16px;
   background: rgba(26, 26, 46, 0.95);
 }
 
@@ -2178,7 +2185,7 @@
 }
 .shot-group-header {
   position: sticky;
-  top: 56px;
+  top: calc(56px + var(--safe-top));
   z-index: 10;
   background: var(--bg-body);
   padding: 8px 0 4px;
@@ -3385,7 +3392,7 @@ mark.script-hl {
   border-bottom: 1px solid var(--border);
   background: var(--bg-surface);
   position: sticky;
-  top: 48px;
+  top: calc(48px + var(--safe-top));
   z-index: 50;
 }
 .markers-header-top {
@@ -3519,7 +3526,7 @@ mark.script-hl {
   background: #1a0000;
   border-bottom: 1px solid #330000;
   position: sticky;
-  top: 104px;
+  top: calc(104px + var(--safe-top));
   z-index: 50;
 }
 .marker-rec-indicator {
@@ -3865,10 +3872,10 @@ mark.script-hl {
 /* Responsive */
 @media (max-width: 480px) {
   .markers-header {
-    top: 44px;
+    top: calc(44px + var(--safe-top));
   }
   .marker-rec-header {
-    top: 96px;
+    top: calc(96px + var(--safe-top));
   }
   .marker-tc-big {
     font-size: 36px;
@@ -4340,7 +4347,7 @@ mark.script-hl {
   .header-nav {
     display: none;
     position: fixed;
-    top: 56px;
+    top: calc(56px + var(--safe-top));
     left: 0;
     right: 0;
     background: var(--bg-body);
@@ -4365,7 +4372,7 @@ mark.script-hl {
   }
 
   .app-header {
-    padding: 8px 12px;
+    padding: calc(8px + var(--safe-top)) 12px;
   }
 
   .app-main {

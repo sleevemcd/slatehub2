@@ -37,7 +37,7 @@ export function htmlToPlainText(html: string): string {
   return blocks.length > 0 ? blocks.join('\n\n') : (div.textContent || '')
 }
 
-export async function fetchTeleprompterState(relayUrl: string, sessionId: string): Promise<{ scrollPosition: number; speed: number; playing: boolean } | null> {
+export async function fetchTeleprompterState(relayUrl: string, sessionId: string): Promise<{ scrollPosition: number; speed: number; playing: boolean; age?: number | null } | null> {
   try {
     const url = `${relayUrl}?action=getTeleprompterState&sessionId=${encodeURIComponent(sessionId)}`
     const res = await fetch(url)
@@ -48,6 +48,7 @@ export async function fetchTeleprompterState(relayUrl: string, sessionId: string
         scrollPosition: data.result.scrollPosition ?? 0,
         speed: data.result.speed ?? 5,
         playing: data.result.playing ?? false,
+        age: data.result.age,
       }
     }
     return null
