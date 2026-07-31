@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef, useCallback, useMemo } from 'react'
 import { useApp } from '../context/AppContext'
-import { docUrlToTxtUrl, fetchDocText, fetchTeleprompterState } from '../utils/sheet'
+import { docUrlToTxtUrl, fetchDocText, fetchTeleprompterState, htmlToPlainText } from '../utils/sheet'
 
 function generateId(): string {
   return Date.now().toString(36) + '-' + Math.random().toString(36).substring(2, 8)
@@ -42,6 +42,16 @@ export function TeleprompterView() {
   useEffect(() => { speedRef.current = speed }, [speed])
 
   const fetchDoc = useCallback(async (showLoader = false) => {
+    if (state.scriptContent) {
+      const content = htmlToPlainText(state.scriptContent)
+      if (content) {
+        setText(content)
+        setDocError('')
+        setInitialLoading(false)
+        setRefreshing(false)
+        return
+      }
+    }
     if (!teleprompter.docUrl) return
     if (showLoader) setInitialLoading(true)
     else setRefreshing(true)
@@ -63,7 +73,7 @@ export function TeleprompterView() {
       setInitialLoading(false)
       setRefreshing(false)
     }
-  }, [teleprompter.docUrl])
+  }, [teleprompter.docUrl, state.scriptContent])
 
   useEffect(() => {
     fetchDoc(true)

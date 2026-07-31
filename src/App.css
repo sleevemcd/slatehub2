@@ -1515,27 +1515,47 @@
   color: var(--text-muted);
 }
 
-.tp-remote-scroll-area {
+.tp-remote-scroll-wrap {
+  position: relative;
   height: 400px;
+}
+
+.tp-remote-scroll-area {
+  height: 100%;
   background: var(--bg-input);
   border: 2px solid var(--border);
   border-radius: 12px;
   position: relative;
-  cursor: pointer;
-  overflow: hidden;
+  cursor: grab;
+  overflow-y: auto;
+  overflow-x: hidden;
+  scrollbar-width: none;
   touch-action: none;
   user-select: none;
   transition: background-color 0.2s, border-color 0.2s;
 }
+.tp-remote-scroll-area::-webkit-scrollbar {
+  display: none;
+}
+.tp-remote-scroll-area:active {
+  cursor: grabbing;
+}
 
 .tp-remote-scroll-fill {
-  position: absolute;
-  bottom: 0;
-  left: 0;
-  right: 0;
-  background: rgba(245, 197, 66, 0.08);
-  transition: height 0.05s ease;
+  height: 400%;
+  padding: 12px 0;
+  box-sizing: border-box;
+  display: flex;
+  flex-direction: column;
+  gap: 18px;
   pointer-events: none;
+}
+
+.tp-remote-line {
+  height: 7px;
+  border-radius: 4px;
+  background: rgba(245, 197, 66, 0.12);
+  margin: 0 16px;
 }
 
 .tp-remote-scroll-handle {
@@ -3192,6 +3212,11 @@ mark.script-hl {
   gap: 6px;
   justify-content: center;
 }
+.hl-color-label {
+  font-size: 11px;
+  color: var(--text-muted);
+  text-align: center;
+}
 .hl-color-btn {
   width: 28px;
   height: 28px;
@@ -3921,6 +3946,31 @@ mark.script-hl {
   font-size: 11px;
   font-weight: 600;
   opacity: 0.8;
+}
+.project-share-tag {
+  font-size: 11px;
+  font-weight: 600;
+  padding: 2px 8px;
+  border-radius: 10px;
+  cursor: pointer;
+  border: 1px solid transparent;
+  transition: all 0.2s;
+}
+.project-share-tag.shared {
+  color: var(--accent);
+  border-color: var(--accent);
+}
+.project-share-tag.local {
+  color: var(--text-muted);
+  border-color: var(--border);
+}
+.project-share-tag:hover {
+  opacity: 0.7;
+}
+.project-share-toggle {
+  display: flex;
+  gap: 6px;
+  margin-bottom: 6px;
 }
 .project-group-filter {
   margin-bottom: 12px;

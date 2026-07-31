@@ -9,6 +9,7 @@ export function ProjectManager() {
   const [relayUrl, setRelayUrl] = useState('')
   const [group, setGroup] = useState('')
   const [groupColor, setGroupColor] = useState('#6366f1')
+  const [shared, setShared] = useState(true)
   const [showNewForm, setShowNewForm] = useState(false)
   const [editingId, setEditingId] = useState<string | null>(null)
   const [editName, setEditName] = useState('')
@@ -18,13 +19,14 @@ export function ProjectManager() {
 
   const handleCreate = async () => {
     if (!name.trim() || !sheetUrl.trim()) return
-    await createProject(name.trim(), sheetUrl.trim(), docUrl.trim(), relayUrl.trim(), group.trim(), groupColor)
+    await createProject(name.trim(), sheetUrl.trim(), docUrl.trim(), relayUrl.trim(), group.trim(), groupColor, shared)
     setName('')
     setSheetUrl('')
     setDocUrl('')
     setRelayUrl('')
     setGroup('')
     setGroupColor('#6366f1')
+    setShared(true)
     setShowNewForm(false)
   }
 
@@ -108,6 +110,16 @@ export function ProjectManager() {
                       {p.docUrl && <span>📜 Doc linked</span>}
                       {p.relayUrl && <span>📡 Relay linked</span>}
                       {p.group && <span className="project-group-tag" style={{ color: p.groupColor }}>{p.group}</span>}
+                      <span
+                        className={`project-share-tag ${p.shared === false ? 'local' : 'shared'}`}
+                        onClick={(e) => {
+                          e.stopPropagation()
+                          updateProject(p.id, { shared: p.shared === false })
+                        }}
+                        title={p.shared === false ? 'Local only — click to share with crew' : 'Shared with crew — click to make local'}
+                      >
+                        {p.shared === false ? '🔒 Local' : '🌐 Shared'}
+                      </span>
                     </div>
                   </div>
                   <div className="project-card-right">
@@ -155,6 +167,27 @@ export function ProjectManager() {
                   <span className="color-hex">{groupColor}</span>
                 </span>
               </label>
+
+              <label className="setup-label">Sharing</label>
+              <div className="project-share-toggle">
+                <button
+                  className={`btn btn-sm ${shared ? 'btn-primary' : 'btn-ghost'}`}
+                  onClick={(e) => { e.preventDefault(); setShared(true) }}
+                >
+                  🌐 Shared (NAS sync)
+                </button>
+                <button
+                  className={`btn btn-sm ${!shared ? 'btn-primary' : 'btn-ghost'}`}
+                  onClick={(e) => { e.preventDefault(); setShared(false) }}
+                >
+                  🔒 Local only
+                </button>
+              </div>
+              <p className="setup-hint">
+                {shared
+                  ? 'Shared projects sync to the NAS so the whole crew sees them from any device.'
+                  : 'Local projects stay on this device only — not uploaded to the NAS.'}
+              </p>
 
               <div className="project-form-buttons">
                 <button className="btn-primary" onClick={handleCreate} disabled={!name.trim() || !sheetUrl.trim()}>

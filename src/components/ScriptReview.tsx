@@ -195,7 +195,7 @@ export function ScriptReview() {
     }
   }
 
-  const applyHighlight = () => {
+  const applyHighlight = (color: string = DEFAULT_COLOR) => {
     if (selStart === null || selEnd === null || selStart.paraIdx !== selEnd.paraIdx) return
     const text = plainParagraphs[selStart.paraIdx].slice(selStart.offset, selEnd.offset)
     if (!text.trim()) return
@@ -211,7 +211,7 @@ export function ScriptReview() {
       id: generateId(),
       paragraphIndex: selStart.paraIdx,
       text: text.trim(),
-      color: DEFAULT_COLOR,
+      color,
       shotId: null,
       createdAt: new Date().toISOString(),
       startOffset: selStart.offset,
@@ -223,12 +223,6 @@ export function ScriptReview() {
     setSelStart(null)
     setSelEnd(null)
     setColorPickerHL(null)
-  }
-
-  const undoHighlight = () => {
-    setSelStart(null)
-    setSelEnd(null)
-    setShowActions(false)
   }
 
   const addShotFromHighlight = (hlId: string) => {
@@ -429,20 +423,18 @@ export function ScriptReview() {
 
       {isActionMenuOpen && (
         <div className="hl-overlay" onClick={() => { setShowActions(false); setSelStart(null); setSelEnd(null) }}>
-          <div className="hl-action-menu" style={{ left: actionsPos.x, top: actionsPos.y }}
+          <div className="hl-color-menu" style={{ left: actionsPos.x, top: actionsPos.y }}
             onClick={e => e.stopPropagation()}>
-          <button className="hl-action-btn" onClick={applyHighlight}>
-            <span className="hl-action-icon">✓</span> Highlight
-          </button>
-          {state.highlights.filter(h =>
-            h.paragraphIndex === selStart?.paraIdx &&
-            h.startOffset === selStart?.offset &&
-            h.endOffset === selEnd?.offset
-          ).length === 0 && (
-            <button className="hl-action-btn" onClick={undoHighlight}>
-              <span className="hl-action-icon">↩</span> Undo
-            </button>
-          )}
+            <div className="hl-color-swatches">
+              {HIGHLIGHT_COLORS.map(c => (
+                <button key={c.value}
+                  className="hl-color-btn"
+                  style={{ background: c.value }}
+                  onClick={() => applyHighlight(c.value)}
+                  title={c.name} />
+              ))}
+            </div>
+            <div className="hl-color-label">Pick a color to highlight</div>
           </div>
         </div>
       )}

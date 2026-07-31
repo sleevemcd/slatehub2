@@ -24,6 +24,19 @@ export async function fetchDocText(txtUrl: string): Promise<string> {
   return res.text()
 }
 
+export function htmlToPlainText(html: string): string {
+  if (!html) return ''
+  const div = document.createElement('div')
+  div.innerHTML = html
+  const blocks: string[] = []
+  for (const child of div.children) {
+    if (['P', 'H1', 'H2', 'H3', 'H4'].includes(child.tagName)) {
+      blocks.push(child.textContent || '')
+    }
+  }
+  return blocks.length > 0 ? blocks.join('\n\n') : (div.textContent || '')
+}
+
 export async function fetchTeleprompterState(relayUrl: string, sessionId: string): Promise<{ scrollPosition: number; speed: number; playing: boolean } | null> {
   try {
     const url = `${relayUrl}?action=getTeleprompterState&sessionId=${encodeURIComponent(sessionId)}`

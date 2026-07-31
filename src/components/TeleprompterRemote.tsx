@@ -11,6 +11,17 @@ export function TeleprompterRemote() {
   const [sending, setSending] = useState(false)
   const [status, setStatus] = useState<'idle' | 'sent' | 'error'>('idle')
   const sendTimer = useRef<ReturnType<typeof setTimeout> | undefined>(undefined)
+  const scrollAreaRef = useRef<HTMLDivElement>(null)
+  const isDragging = useRef(false)
+  const dragStartY = useRef(0)
+  const dragStartScroll = useRef(0)
+  const playingRef = useRef(playing)
+  const speedRef = useRef(speed)
+  const scrollPosRef = useRef(scrollPos)
+
+  useEffect(() => { playingRef.current = playing }, [playing])
+  useEffect(() => { speedRef.current = speed }, [speed])
+  useEffect(() => { scrollPosRef.current = scrollPos }, [scrollPos])
 
   const sendState = useCallback(async (partial: { scrollPosition?: number; speed?: number; playing?: boolean }) => {
     if (!teleprompter.relayUrl || !teleprompter.sessionId) return
@@ -33,40 +44,73 @@ export function TeleprompterRemote() {
     }
   }, [])
 
-  const handleScroll = useCallback((e: React.MouseEvent | React.TouchEvent, el: HTMLDivElement) => {
-    const rect = el.getBoundingClientRect()
-    let clientY: number
-    if ('touches' in e) {
-      clientY = e.touches[0].clientY
-    } else {
-      clientY = e.clientY
-    }
-    const pct = Math.max(0, Math.min(1, (clientY - rect.top) / rect.height))
-    setScrollPos(pct)
-    debouncedSend({ scrollPosition: pct, playing, speed })
-  }, [debouncedSend, playing, speed])
+  const handleScroll = useCallback(() => {
+    const el = scrollAreaRef.current
+    if (!el) return
+    const maxScroll = el.scrollHeight - el.clientHeight
+    const pos = maxScroll > 0 ? el.scrollTop / maxScroll : 0
+    setScrollPos(pos)
+    debouncedSend({ scrollPosition: pos, playing: playingRef.current, speed: speedRef.current })
+  }, [debouncedSend])
+
+  const handleMouseDown = useCallback((e: React.MouseEvent) => {
+    isDragging.current = true
+    dragStartY.current = e.clientY
+    dragStartScroll.current = scrollAreaRef.current?.scrollTop ?? 0
+    e.preventDefault()
+  }, [])
+
+  const handleMouseMove = useCallback((e: React.MouseEvent) => {
+    if (!isDragging.current || !scrollAreaRef.current) return
+    const dy = e.clientY - dragStartY.current
+    scrollAreaRef.current.scrollTop = dragStartScroll.current - dy
+  }, [])
+
+  const handleMouseUp = useCallback(() => {
+    isDragging.current = false
+  }, [])
+
+  const handleTouchStart = useCallback((e: React.TouchEvent) => {
+    isDragging.current = true
+    dragStartY.current = e.touches[0].clientY
+    dragStartScroll.current = scrollAreaRef.current?.scrollTop ?? 0
+  }, [])
+
+  const handleTouchMove = useCallback((e: React.TouchEvent) => {
+    if (!isDragging.current || !scrollAreaRef.current) return
+    const dy = e.touches[0].clientY - dragStartY.current
+    scrollAreaRef.current.scrollTop = dragStartScroll.current - dy
+  }, [])
+
+  const handleTouchEnd = useCallback(() => {
+    isDragging.current = false
+  }, [])
+
+  const handleWheel = useCallback((e: React.WheelEvent) => {
+    const el = scrollAreaRef.current
+    if (el) el.scrollTop += e.deltaY
+  }, [])
 
   const handleSpeedChange = (newSpeed: number) => {
     setSpeed(newSpeed)
-    debouncedSend({ speed: newSpeed, playing, scrollPosition: scrollPos })
+    debouncedSend({ speed: newSpeed, playing, scrollPosition: scrollPosRef.current })
   }
 
   const togglePlay = () => {
     const newPlaying = !playing
     setPlaying(newPlaying)
-    sendState({ playing: newPlaying, speed, scrollPosition: scrollPos })
-  }
-
-  const handleWheel = (e: React.WheelEvent) => {
-    const delta = e.deltaY > 0 ? 0.03 : -0.03
-    const newPos = Math.max(0, Math.min(1, scrollPos + delta))
-    setScrollPos(newPos)
-    debouncedSend({ scrollPosition: newPos, playing, speed })
+    sendState({ playing: newPlaying, speed, scrollPosition: scrollPosRef.current })
   }
 
   const jumpToMarker = (marker: typeof state.teleprompterState.markers[0]) => {
-    setScrollPos(marker.scrollPosition)
-    sendState({ scrollPosition: marker.scrollPosition, playing, speed })
+    jumpTo(marker.scrollPosition)
+  }
+
+  const jumpTo = (pct: number) => {
+    const el = scrollAreaRef.current
+    if (!el) return
+    const maxScroll = el.scrollHeight - el.clientHeight
+    el.scrollTop = pct * maxScroll
   }
 
   const goBack = () => {
@@ -82,13 +126,26 @@ export function TeleprompterRemote() {
         </div>
       </div>
 
-      <div
-        className="tp-remote-scroll-area"
-        onMouseDown={e => handleScroll(e, e.currentTarget)}
-        onTouchMove={e => handleScroll(e, e.currentTarget)}
-        onWheel={handleWheel}
-      >
-        <div className="tp-remote-scroll-fill" style={{ height: `${scrollPos * 100}%` }} />
+      <div className="tp-remote-scroll-wrap">
+        <div
+          className="tp-remote-scroll-area"
+          ref={scrollAreaRef}
+          onScroll={handleScroll}
+          onMouseDown={handleMouseDown}
+          onMouseMove={handleMouseMove}
+          onMouseUp={handleMouseUp}
+          onMouseLeave={handleMouseUp}
+          onTouchStart={handleTouchStart}
+          onTouchMove={handleTouchMove}
+          onTouchEnd={handleTouchEnd}
+          onWheel={handleWheel}
+        >
+          <div className="tp-remote-scroll-fill">
+            {Array.from({ length: 60 }).map((_, i) => (
+              <div key={i} className="tp-remote-line" />
+            ))}
+          </div>
+        </div>
         <div className="tp-remote-scroll-handle" style={{ top: `${scrollPos * 100}%` }}>
           <span className="tp-remote-pct">{Math.round(scrollPos * 100)}%</span>
         </div>
@@ -129,26 +186,11 @@ export function TeleprompterRemote() {
         )}
 
         <div className="tp-remote-jumps">
-          <button className="btn-small" onClick={() => {
-            setScrollPos(0)
-            sendState({ scrollPosition: 0, playing, speed })
-          }}>Top</button>
-          <button className="btn-small" onClick={() => {
-            setScrollPos(0.25)
-            sendState({ scrollPosition: 0.25, playing, speed })
-          }}>25%</button>
-          <button className="btn-small" onClick={() => {
-            setScrollPos(0.5)
-            sendState({ scrollPosition: 0.5, playing, speed })
-          }}>50%</button>
-          <button className="btn-small" onClick={() => {
-            setScrollPos(0.75)
-            sendState({ scrollPosition: 0.75, playing, speed })
-          }}>75%</button>
-          <button className="btn-small" onClick={() => {
-            setScrollPos(1)
-            sendState({ scrollPosition: 1, playing, speed })
-          }}>End</button>
+          <button className="btn-small" onClick={() => jumpTo(0)}>Top</button>
+          <button className="btn-small" onClick={() => jumpTo(0.25)}>25%</button>
+          <button className="btn-small" onClick={() => jumpTo(0.5)}>50%</button>
+          <button className="btn-small" onClick={() => jumpTo(0.75)}>75%</button>
+          <button className="btn-small" onClick={() => jumpTo(1)}>End</button>
         </div>
       </div>
 

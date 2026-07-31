@@ -7,6 +7,7 @@ export interface Project {
   docUrl: string
   relayUrl: string
   createdAt: string
+  shared?: boolean
 }
 
 export interface CrewMember {

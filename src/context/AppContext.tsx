@@ -513,7 +513,7 @@ interface AppContextType {
   updateShot: (row: number, data: Partial<ShotRecord>) => void
   reorderShots: (sorted: ShotRecord[]) => void
   toggleTheme: () => void
-  createProject: (name: string, sheetUrl: string, docUrl?: string, relayUrl?: string, group?: string, groupColor?: string) => Promise<void>
+  createProject: (name: string, sheetUrl: string, docUrl?: string, relayUrl?: string, group?: string, groupColor?: string, shared?: boolean) => Promise<void>
   switchProject: (id: string) => Promise<void>
   deleteProject: (id: string) => void
   updateProject: (id: string, data: Partial<Project>) => void
@@ -553,7 +553,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
     }
   }, [])
 
-  const createProject = useCallback(async (name: string, sheetUrl: string, docUrl = '', relayUrl = '', group = '', groupColor = '#6366f1') => {
+  const createProject = useCallback(async (name: string, sheetUrl: string, docUrl = '', relayUrl = '', group = '', groupColor = '#6366f1', shared = true) => {
     const project: Project = {
       id: generateId(),
       name,
@@ -563,6 +563,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
       docUrl,
       relayUrl,
       createdAt: new Date().toISOString(),
+      shared,
     }
     dispatch({ type: 'CREATE_PROJECT', project })
     dispatch({ type: 'SET_ACTIVE_PROJECT', id: project.id })
@@ -795,66 +796,89 @@ export function AppProvider({ children }: { children: ReactNode }) {
   const saveTimer = useRef<ReturnType<typeof setTimeout> | undefined>(undefined)
   const prevSaveRef = useRef('')
   useEffect(() => {
+    const sharedProjects = state.projects.filter(p => p.shared !== false)
+    const activeShared = sharedProjects.some(p => p.id === state.activeProjectId)
     const snapshot = JSON.stringify({
-      projects: state.projects,
-      activeProjectId: state.activeProjectId,
+      projects: sharedProjects,
+      activeProjectId: activeShared ? state.activeProjectId : null,
       crewMembers: state.crewMembers,
       quickMessages: state.quickMessages,
       savedUsers: state.savedUsers,
       theme: state.theme,
-      shots: state.shots,
-      sheetUrl: state.sheetUrl,
-      takes: state.takes,
-      markers: state.markers,
-      sessions: state.sessions,
+      shots: activeShared ? state.shots : [],
+      sheetUrl: activeShared ? state.sheetUrl : '',
+      takes: activeShared ? state.takes : [],
+      markers: activeShared ? state.markers : [],
+      sessions: activeShared ? state.sessions : [],
     })
     if (snapshot === prevSaveRef.current) return
     prevSaveRef.current = snapshot
     if (saveTimer.current) clearTimeout(saveTimer.current)
     saveTimer.current = setTimeout(() => saveToApi(JSON.parse(snapshot)), 1000)
     return () => { if (saveTimer.current) clearTimeout(saveTimer.current) }
-  }, [state.projects, state.activeProjectId, state.crewMembers, state.quickMessages, state.savedUsers, state.theme, state.shots, state.sheetUrl, state.takes])
+  }, [state.projects, state.activeProjectId, state.crewMembers, state.quickMessages, state.savedUsers, state.theme, state.shots, state.sheetUrl, state.takes, state.markers, state.sessions])
 
   const loadedRef = useRef(false)
   useEffect(() => {
     if (loadedRef.current) return
     loadedRef.current = true
     loadFromApi().then(apiData => {
-      if (!apiData) return
-      if (apiData.projects && apiData.projects.length > 0) {
-        dispatch({ type: 'SET_PROJECTS', projects: apiData.projects })
+      const apiProjects = (apiData?.projects as Project[] | undefined) || []
+      const localProjects = loadProjects()
+      const merged = apiProjects.length > 0
+        ? [...apiProjects, ...localProjects.filter(lp => lp.shared === false && !apiProjects.some(ap => ap.id === lp.id))]
+        : localProjects
+      if (merged.length > 0) {
+        dispatch({ type: 'SET_PROJECTS', projects: merged })
       }
-      if (apiData.activeProjectId) {
-        dispatch({ type: 'SET_ACTIVE_PROJECT', id: apiData.activeProjectId })
+      const loadedActive = apiData?.activeProjectId || merged[0]?.id || null
+      if (loadedActive) {
+        dispatch({ type: 'SET_ACTIVE_PROJECT', id: loadedActive })
       }
-      if (apiData.crewMembers) {
+      const activeIsShared = merged.some(p => p.id === loadedActive && p.shared !== false)
+      if (apiData?.crewMembers) {
         apiData.crewMembers.forEach(m => dispatch({ type: 'ADD_CREW_MEMBER', member: m }))
       }
-      if (apiData.savedUsers) {
+      if (apiData?.savedUsers) {
         apiData.savedUsers.forEach(u => dispatch({ type: 'ADD_SAVED_USER', user: u }))
       }
-      if (apiData.quickMessages) {
+      if (apiData?.quickMessages) {
         dispatch({ type: 'SET_QUICK_MESSAGES', messages: apiData.quickMessages })
       }
-      if (apiData.theme) {
+      if (apiData?.theme) {
         dispatch({ type: 'SET_THEME', theme: apiData.theme })
       }
-      if (apiData.shots) {
+      if (apiData?.shots && activeIsShared) {
         dispatch({ type: 'SET_SHOTS', shots: apiData.shots })
       }
-      if (apiData.sheetUrl) {
+      if (apiData?.sheetUrl && activeIsShared) {
         dispatch({ type: 'SET_SHEET_URL', url: apiData.sheetUrl })
       }
-      if (apiData.takes) {
+      if (apiData?.takes && activeIsShared) {
         apiData.takes.forEach(t => dispatch({ type: 'ADD_TAKE', take: t }))
       }
-      if (apiData.markers) {
+      if (apiData?.markers && activeIsShared) {
         apiData.markers.forEach(m => dispatch({ type: 'ADD_MARKER', marker: m }))
       }
-      if (apiData.sessions) {
+      if (apiData?.sessions && activeIsShared) {
         apiData.sessions.forEach(s => dispatch({ type: 'ADD_SESSION', session: s }))
       }
-      if (!apiData?.shots) {
+      const localProjectId = loadedActive && merged.some(p => p.id === loadedActive && p.shared === false) ? loadedActive : null
+      if (localProjectId) {
+        const local = loadShotData(localProjectId)
+        if (local.shots.length > 0) {
+          dispatch({ type: 'SET_SHOTS', shots: local.shots })
+          if (local.sheetUrl) dispatch({ type: 'SET_SHEET_URL', url: local.sheetUrl })
+        }
+        const localTakes = loadTakes(localProjectId)
+        if (localTakes.length > 0) {
+          localTakes.forEach(t => dispatch({ type: 'ADD_TAKE', take: t }))
+        }
+        const localMarkers = loadMarkers(localProjectId)
+        if (localMarkers.length > 0) localMarkers.forEach(m => dispatch({ type: 'ADD_MARKER', marker: m }))
+        const localSessions = loadSessions()
+        if (localSessions.length > 0) localSessions.forEach(s => dispatch({ type: 'ADD_SESSION', session: s }))
+      } else if (!apiData?.shots) {
         const local = loadShotData(apiData?.activeProjectId || state.activeProjectId)
         if (local.shots.length > 0) {
           dispatch({ type: 'SET_SHOTS', shots: local.shots })

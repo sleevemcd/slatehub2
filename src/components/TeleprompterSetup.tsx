@@ -21,9 +21,12 @@ export function TeleprompterSetup() {
 
   const start = () => {
     const trimmed = docUrl.trim()
-    if (!trimmed) return
+    const hasScript = !!state.scriptContent
+    if (!trimmed && !hasScript) return
 
-    localStorage.setItem('slatehub-tp-doc-url', trimmed)
+    if (trimmed) {
+      localStorage.setItem('slatehub-tp-doc-url', trimmed)
+    }
     const finalRelay = relayUrl.trim() || `${window.location.origin}/api/relay`
     if (relayUrl.trim()) {
       localStorage.setItem('slatehub-tp-relay-url', relayUrl.trim())
@@ -49,7 +52,10 @@ export function TeleprompterSetup() {
         </p>
 
         <div className="setup-form">
-          <label className="setup-label">Google Doc URL</label>
+          <label className="setup-label">
+            Google Doc URL (optional)
+            <span className="label-hint">Leave empty to use the script from the Script Review page</span>
+          </label>
           <input
             className="setup-input"
             type="text"
@@ -102,9 +108,15 @@ export function TeleprompterSetup() {
           </button>
         </div>
 
-        <button className="btn-primary" onClick={start} disabled={!docUrl.trim()}>
+        <button className="btn-primary" onClick={start} disabled={!docUrl.trim() && !state.scriptContent}>
           {mode === 'display' ? 'Start Teleprompter' : 'Start Remote Control'}
         </button>
+
+        {!docUrl.trim() && state.scriptContent && (
+          <p className="setup-hint" style={{ marginTop: 8, color: 'var(--accent)' }}>
+            ✓ Using script from the Script Review page ({state.scriptContent.length} chars)
+          </p>
+        )}
 
         {state.error && (
           <div className="setup-error">
