@@ -61,6 +61,22 @@ export function ScriptReview() {
   const [pasteText, setPasteText] = useState('')
 
   const contentElRef = useRef<HTMLDivElement>(null)
+  const projectRef = useRef(state.activeProjectId)
+
+  useEffect(() => {
+    if (projectRef.current !== state.activeProjectId) {
+      projectRef.current = state.activeProjectId
+      setRawHtml(state.scriptContent || '')
+      setDocUrl(activeProject?.docUrl || '')
+      setScriptError('')
+      setSelStart(null)
+      setSelEnd(null)
+      setShowActions(false)
+      setColorPickerHL(null)
+    } else if (!rawHtml && state.scriptContent) {
+      setRawHtml(state.scriptContent)
+    }
+  }, [state.activeProjectId, rawHtml])
 
   const [showNoteInput, setShowNoteInput] = useState<string | null>(null)
   const [noteText, setNoteText] = useState('')

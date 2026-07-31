@@ -59,7 +59,17 @@ const server = http.createServer((req, res) => {
     req.on('data', chunk => body += chunk)
     req.on('end', () => {
       try {
-        const data = JSON.parse(body)
+        const existing = readData()
+        const incoming = JSON.parse(body)
+        const data = {
+          ...existing,
+          ...incoming,
+          projects: incoming.projects ?? existing.projects ?? [],
+          projectsData: {
+            ...(existing.projectsData || {}),
+            ...(incoming.projectsData || {}),
+          },
+        }
         writeData(data)
         res.writeHead(200, { ...headers, 'Content-Type': 'application/json' })
         res.end(JSON.stringify({ ok: true }))

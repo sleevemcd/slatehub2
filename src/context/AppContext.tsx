@@ -5,6 +5,7 @@ import { fetchSheetCsv } from '../utils/sheet'
 import { parseCSV, rowsToShotRecords } from '../utils/csv'
 
 const API_BASE = window.location.origin + '/api'
+const DEFAULT_RELAY_URL = `${window.location.origin}/api/relay`
 
 async function loadFromApi(): Promise<Partial<AppState> | null> {
   try {
@@ -41,6 +42,7 @@ type Action =
   | { type: 'SET_SHOT_PRIORITY'; row: number; priority: string }
   | { type: 'ADD_SHOT'; shot: ShotRecord }
   | { type: 'ADD_TAKE'; take: Take }
+  | { type: 'SET_TAKES'; takes: Take[] }
   | { type: 'MARK_TAKE_GOOD'; takeId: string; good: boolean }
   | { type: 'MARK_TAKE_CIRCLED'; takeId: string; circled: boolean }
   | { type: 'SET_TAKE_NOTES'; takeId: string; notes: string }
@@ -65,6 +67,7 @@ type Action =
   | { type: 'SET_SESSIONS'; sessions: MarkerSession[] }
   | { type: 'SET_SESSION_ACTIVE'; active: boolean }
   | { type: 'SET_SCRIPT_CONTENT'; content: string }
+  | { type: 'SWITCH_PROJECT'; id: string }
   | { type: 'SET_USER'; user: User }
   | { type: 'LOGIN'; user: User }
   | { type: 'REGISTER'; user: User }
@@ -207,6 +210,20 @@ function loadSessions(): MarkerSession[] {
   } catch { return [] }
 }
 
+function scriptStorageKey(projectId: string | null): string {
+  return `slatehub-script-${projectId || 'default'}`
+}
+
+function loadScriptContent(projectId: string | null): string {
+  try {
+    return localStorage.getItem(scriptStorageKey(projectId)) || ''
+  } catch { return '' }
+}
+
+function saveScriptContent(projectId: string | null, content: string) {
+  localStorage.setItem(scriptStorageKey(projectId), content)
+}
+
 function saveSessions(sessions: MarkerSession[]) {
   localStorage.setItem('slatehub-sessions', JSON.stringify(sessions))
 }
@@ -310,6 +327,8 @@ function reducer(state: AppState, action: Action): AppState {
       }
     case 'ADD_TAKE':
       return { ...state, takes: [...state.takes, action.take] }
+    case 'SET_TAKES':
+      return { ...state, takes: action.takes }
     case 'MARK_TAKE_GOOD':
       return {
         ...state,
@@ -381,6 +400,19 @@ function reducer(state: AppState, action: Action): AppState {
       return { ...state, sessionActive: action.active }
     case 'SET_SCRIPT_CONTENT':
       return { ...state, scriptContent: action.content }
+    case 'SWITCH_PROJECT':
+      return {
+        ...state,
+        activeProjectId: action.id,
+        shots: [],
+        sheetUrl: '',
+        takes: [],
+        markers: [],
+        sessions: [],
+        scriptContent: '',
+        activeShot: null,
+        activeTake: 1,
+      }
     case 'SET_USER':
       localStorage.setItem('slatehub-session-email', action.user.email || '')
       return { ...state, currentUser: action.user }
@@ -513,7 +545,7 @@ interface AppContextType {
   updateShot: (row: number, data: Partial<ShotRecord>) => void
   reorderShots: (sorted: ShotRecord[]) => void
   toggleTheme: () => void
-  createProject: (name: string, sheetUrl: string, docUrl?: string, relayUrl?: string, group?: string, groupColor?: string, shared?: boolean) => Promise<void>
+  createProject: (name: string, sheetUrl?: string, docUrl?: string, relayUrl?: string, group?: string, groupColor?: string, shared?: boolean) => Promise<void>
   switchProject: (id: string) => Promise<void>
   deleteProject: (id: string) => void
   updateProject: (id: string, data: Partial<Project>) => void
@@ -553,7 +585,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
     }
   }, [])
 
-  const createProject = useCallback(async (name: string, sheetUrl: string, docUrl = '', relayUrl = '', group = '', groupColor = '#6366f1', shared = true) => {
+  const createProject = useCallback(async (name: string, sheetUrl = '', docUrl = '', relayUrl = '', group = '', groupColor = '#6366f1', shared = true) => {
     const project: Project = {
       id: generateId(),
       name,
@@ -561,9 +593,10 @@ export function AppProvider({ children }: { children: ReactNode }) {
       groupColor,
       sheetUrl,
       docUrl,
-      relayUrl,
+      relayUrl: relayUrl || DEFAULT_RELAY_URL,
       createdAt: new Date().toISOString(),
       shared,
+      ownerEmail: shared ? undefined : (state.currentUser?.email || state.currentUser?.name || ''),
     }
     dispatch({ type: 'CREATE_PROJECT', project })
     dispatch({ type: 'SET_ACTIVE_PROJECT', id: project.id })
@@ -572,21 +605,68 @@ export function AppProvider({ children }: { children: ReactNode }) {
     localStorage.setItem('slatehub-active-project', project.id)
     const projects = [...state.projects, project]
     saveProjects(projects)
-    await loadShots(sheetUrl)
-  }, [state.projects, loadShots])
+    if (sheetUrl) {
+      await loadShots(sheetUrl)
+    } else {
+      dispatch({ type: 'SET_SHOTS', shots: [] })
+      dispatch({ type: 'SET_SHEET_URL', url: '' })
+      dispatch({ type: 'SET_VIEW', view: 'shots' })
+    }
+  }, [state.projects, state.currentUser, loadShots])
+
+  const loadProjectDataFromApi = useCallback(async (projectId: string): Promise<Record<string, any>> => {
+    try {
+      const res = await fetch(`${API_BASE}/data`)
+      if (!res.ok) return {}
+      const data = await res.json()
+      return data?.projectsData?.[projectId] || {}
+    } catch { return {} }
+  }, [])
 
   const switchProject = useCallback(async (id: string) => {
     const project = state.projects.find(p => p.id === id)
     if (!project) return
-    dispatch({ type: 'SET_ACTIVE_PROJECT', id })
-    dispatch({ type: 'SET_TELEPROMPTER_CONFIG', config: { docUrl: project.docUrl, relayUrl: project.relayUrl, sessionId: '' } })
+    loadingProjectRef.current = id
+    dispatch({ type: 'SWITCH_PROJECT', id })
+    dispatch({ type: 'SET_TELEPROMPTER_CONFIG', config: { docUrl: project.docUrl, relayUrl: project.relayUrl || DEFAULT_RELAY_URL, sessionId: '' } })
     dispatch({ type: 'SET_WRITE_BACK_URL', url: project.relayUrl })
-    dispatch({ type: 'SET_VIEW', view: 'shots' })
     localStorage.setItem('slatehub-active-project', id)
-    if (project.sheetUrl) {
+    const pd = await loadProjectDataFromApi(id)
+    if (pd.shots?.length) dispatch({ type: 'SET_SHOTS', shots: pd.shots })
+    if (pd.sheetUrl) dispatch({ type: 'SET_SHEET_URL', url: pd.sheetUrl })
+    if (pd.takes?.length) dispatch({ type: 'SET_TAKES', takes: pd.takes })
+    if (pd.markers?.length) dispatch({ type: 'SET_MARKERS', markers: pd.markers })
+    if (pd.sessions?.length) dispatch({ type: 'SET_SESSIONS', sessions: pd.sessions })
+    if (pd.scriptContent) dispatch({ type: 'SET_SCRIPT_CONTENT', content: pd.scriptContent })
+    if (!pd.shots?.length) {
+      const local = loadShotData(id)
+      if (local.shots.length > 0) {
+        dispatch({ type: 'SET_SHOTS', shots: local.shots })
+        if (local.sheetUrl) dispatch({ type: 'SET_SHEET_URL', url: local.sheetUrl })
+      }
+    }
+    if (!pd.takes?.length) {
+      const localTakes = loadTakes(id)
+      if (localTakes.length > 0) dispatch({ type: 'SET_TAKES', takes: localTakes })
+    }
+    if (!pd.markers?.length) {
+      const localMarkers = loadMarkers(id)
+      if (localMarkers.length > 0) dispatch({ type: 'SET_MARKERS', markers: localMarkers })
+    }
+    if (!pd.sessions?.length) {
+      const localSessions = loadSessions()
+      if (localSessions.length > 0) dispatch({ type: 'SET_SESSIONS', sessions: localSessions })
+    }
+    if (!pd.scriptContent) {
+      const localScript = loadScriptContent(id)
+      if (localScript) dispatch({ type: 'SET_SCRIPT_CONTENT', content: localScript })
+    }
+    loadingProjectRef.current = null
+    dispatch({ type: 'SET_VIEW', view: 'shots' })
+    if (project.sheetUrl && !pd.shots?.length) {
       await loadShots(project.sheetUrl)
     }
-  }, [state.projects, loadShots])
+  }, [state.projects, loadProjectDataFromApi, loadShots])
 
   const deleteProject = useCallback((id: string) => {
     dispatch({ type: 'DELETE_PROJECT', id })
@@ -599,10 +679,14 @@ export function AppProvider({ children }: { children: ReactNode }) {
   }, [state.projects, state.activeProjectId])
 
   const updateProject = useCallback((id: string, data: Partial<Project>) => {
-    dispatch({ type: 'UPDATE_PROJECT', id, data })
-    const projects = state.projects.map(p => p.id === id ? { ...p, ...data } : p)
+    const next = { ...data }
+    if ('shared' in data) {
+      next.ownerEmail = data.shared ? undefined : (state.currentUser?.email || state.currentUser?.name || '')
+    }
+    dispatch({ type: 'UPDATE_PROJECT', id, data: next })
+    const projects = state.projects.map(p => p.id === id ? { ...p, ...next } : p)
     saveProjects(projects)
-  }, [state.projects])
+  }, [state.projects, state.currentUser])
 
   const activeProject = state.projects.find(p => p.id === state.activeProjectId) || null
 
@@ -795,28 +879,35 @@ export function AppProvider({ children }: { children: ReactNode }) {
 
   const saveTimer = useRef<ReturnType<typeof setTimeout> | undefined>(undefined)
   const prevSaveRef = useRef('')
+  const loadingProjectRef = useRef<string | null>(null)
   useEffect(() => {
-    const sharedProjects = state.projects.filter(p => p.shared !== false)
-    const activeShared = sharedProjects.some(p => p.id === state.activeProjectId)
+    const projectData = (state.activeProjectId && loadingProjectRef.current !== state.activeProjectId)
+      ? {
+          [state.activeProjectId]: {
+            shots: state.shots,
+            sheetUrl: state.sheetUrl,
+            takes: state.takes,
+            markers: state.markers,
+            sessions: state.sessions,
+            scriptContent: state.scriptContent,
+          },
+        }
+      : {}
     const snapshot = JSON.stringify({
-      projects: sharedProjects,
-      activeProjectId: activeShared ? state.activeProjectId : null,
+      projects: state.projects,
+      activeProjectId: state.activeProjectId,
       crewMembers: state.crewMembers,
       quickMessages: state.quickMessages,
       savedUsers: state.savedUsers,
       theme: state.theme,
-      shots: activeShared ? state.shots : [],
-      sheetUrl: activeShared ? state.sheetUrl : '',
-      takes: activeShared ? state.takes : [],
-      markers: activeShared ? state.markers : [],
-      sessions: activeShared ? state.sessions : [],
+      projectsData: projectData,
     })
     if (snapshot === prevSaveRef.current) return
     prevSaveRef.current = snapshot
     if (saveTimer.current) clearTimeout(saveTimer.current)
     saveTimer.current = setTimeout(() => saveToApi(JSON.parse(snapshot)), 1000)
     return () => { if (saveTimer.current) clearTimeout(saveTimer.current) }
-  }, [state.projects, state.activeProjectId, state.crewMembers, state.quickMessages, state.savedUsers, state.theme, state.shots, state.sheetUrl, state.takes, state.markers, state.sessions])
+  }, [state.projects, state.activeProjectId, state.crewMembers, state.quickMessages, state.savedUsers, state.theme, state.shots, state.sheetUrl, state.takes, state.markers, state.sessions, state.scriptContent])
 
   const loadedRef = useRef(false)
   useEffect(() => {
@@ -825,17 +916,31 @@ export function AppProvider({ children }: { children: ReactNode }) {
     loadFromApi().then(apiData => {
       const apiProjects = (apiData?.projects as Project[] | undefined) || []
       const localProjects = loadProjects()
-      const merged = apiProjects.length > 0
-        ? [...apiProjects, ...localProjects.filter(lp => lp.shared === false && !apiProjects.some(ap => ap.id === lp.id))]
-        : localProjects
+      const ownerKey = (state.currentUser?.email || state.currentUser?.name || '').toLowerCase()
+      const visibleApi = apiProjects.filter(p =>
+        p.shared !== false || (p.ownerEmail || '').toLowerCase() === ownerKey
+      )
+      const merged = visibleApi.length > 0
+        ? [
+            ...visibleApi,
+            ...localProjects.filter(lp =>
+              lp.shared === false &&
+              (lp.ownerEmail || '').toLowerCase() === ownerKey &&
+              !visibleApi.some(ap => ap.id === lp.id)
+            ),
+          ]
+        : localProjects.filter(lp =>
+            lp.shared === false && (lp.ownerEmail || '').toLowerCase() === ownerKey
+          )
       if (merged.length > 0) {
         dispatch({ type: 'SET_PROJECTS', projects: merged })
       }
-      const loadedActive = apiData?.activeProjectId || merged[0]?.id || null
+      const loadedActive = (apiData?.activeProjectId && merged.some(p => p.id === apiData.activeProjectId))
+        ? apiData.activeProjectId
+        : (merged[0]?.id || null)
       if (loadedActive) {
         dispatch({ type: 'SET_ACTIVE_PROJECT', id: loadedActive })
       }
-      const activeIsShared = merged.some(p => p.id === loadedActive && p.shared !== false)
       if (apiData?.crewMembers) {
         apiData.crewMembers.forEach(m => dispatch({ type: 'ADD_CREW_MEMBER', member: m }))
       }
@@ -848,54 +953,42 @@ export function AppProvider({ children }: { children: ReactNode }) {
       if (apiData?.theme) {
         dispatch({ type: 'SET_THEME', theme: apiData.theme })
       }
-      if (apiData?.shots && activeIsShared) {
-        dispatch({ type: 'SET_SHOTS', shots: apiData.shots })
+      const pd: Record<string, any> = (apiData as any)?.projectsData?.[loadedActive || ''] || {}
+      if (pd.scriptContent || (apiData as any)?.scriptContent) {
+        dispatch({ type: 'SET_SCRIPT_CONTENT', content: pd.scriptContent || (apiData as any)?.scriptContent })
+      } else {
+        const localScript = loadScriptContent(loadedActive)
+        if (localScript) dispatch({ type: 'SET_SCRIPT_CONTENT', content: localScript })
       }
-      if (apiData?.sheetUrl && activeIsShared) {
-        dispatch({ type: 'SET_SHEET_URL', url: apiData.sheetUrl })
+      const projShots = pd.shots?.length
+        ? pd.shots
+        : ((apiData?.shots as ShotRecord[] | undefined)?.length
+          ? apiData.shots
+          : loadShotData(loadedActive).shots)
+      const projSheetUrl = pd.sheetUrl || apiData?.sheetUrl || loadShotData(loadedActive).sheetUrl
+      if (projShots.length > 0) {
+        dispatch({ type: 'SET_SHOTS', shots: projShots })
       }
-      if (apiData?.takes && activeIsShared) {
-        apiData.takes.forEach(t => dispatch({ type: 'ADD_TAKE', take: t }))
+      if (projSheetUrl) {
+        dispatch({ type: 'SET_SHEET_URL', url: projSheetUrl })
       }
-      if (apiData?.markers && activeIsShared) {
-        apiData.markers.forEach(m => dispatch({ type: 'ADD_MARKER', marker: m }))
+      const projTakes = pd.takes?.length
+        ? pd.takes
+        : ((apiData?.takes as Take[] | undefined)?.length ? apiData.takes : loadTakes(loadedActive))
+      if (projTakes.length > 0) {
+        projTakes.forEach(t => dispatch({ type: 'ADD_TAKE', take: t }))
       }
-      if (apiData?.sessions && activeIsShared) {
-        apiData.sessions.forEach(s => dispatch({ type: 'ADD_SESSION', session: s }))
+      const projMarkers = pd.markers?.length
+        ? pd.markers
+        : ((apiData?.markers as ShotMarker[] | undefined)?.length ? apiData.markers : loadMarkers(loadedActive))
+      if (projMarkers.length > 0) {
+        projMarkers.forEach(m => dispatch({ type: 'ADD_MARKER', marker: m }))
       }
-      const localProjectId = loadedActive && merged.some(p => p.id === loadedActive && p.shared === false) ? loadedActive : null
-      if (localProjectId) {
-        const local = loadShotData(localProjectId)
-        if (local.shots.length > 0) {
-          dispatch({ type: 'SET_SHOTS', shots: local.shots })
-          if (local.sheetUrl) dispatch({ type: 'SET_SHEET_URL', url: local.sheetUrl })
-        }
-        const localTakes = loadTakes(localProjectId)
-        if (localTakes.length > 0) {
-          localTakes.forEach(t => dispatch({ type: 'ADD_TAKE', take: t }))
-        }
-        const localMarkers = loadMarkers(localProjectId)
-        if (localMarkers.length > 0) localMarkers.forEach(m => dispatch({ type: 'ADD_MARKER', marker: m }))
-        const localSessions = loadSessions()
-        if (localSessions.length > 0) localSessions.forEach(s => dispatch({ type: 'ADD_SESSION', session: s }))
-      } else if (!apiData?.shots) {
-        const local = loadShotData(apiData?.activeProjectId || state.activeProjectId)
-        if (local.shots.length > 0) {
-          dispatch({ type: 'SET_SHOTS', shots: local.shots })
-          if (local.sheetUrl) dispatch({ type: 'SET_SHEET_URL', url: local.sheetUrl })
-        }
-        const localTakes = loadTakes(apiData?.activeProjectId || state.activeProjectId)
-        if (localTakes.length > 0) {
-          localTakes.forEach(t => dispatch({ type: 'ADD_TAKE', take: t }))
-        }
-      }
-      if (!apiData?.markers) {
-        const local = loadMarkers(apiData?.activeProjectId || state.activeProjectId)
-        if (local.length > 0) local.forEach(m => dispatch({ type: 'ADD_MARKER', marker: m }))
-      }
-      if (!apiData?.sessions) {
-        const local = loadSessions()
-        if (local.length > 0) local.forEach(s => dispatch({ type: 'ADD_SESSION', session: s }))
+      const projSessions = pd.sessions?.length
+        ? pd.sessions
+        : ((apiData?.sessions as MarkerSession[] | undefined)?.length ? apiData.sessions : loadSessions())
+      if (projSessions.length > 0) {
+        projSessions.forEach(s => dispatch({ type: 'ADD_SESSION', session: s }))
       }
     })
   }, [])
@@ -918,6 +1011,12 @@ export function AppProvider({ children }: { children: ReactNode }) {
       saveMarkers(projectId, state.markers)
     }
   }, [state.markers, projectId])
+
+  useEffect(() => {
+    if (state.scriptContent) {
+      saveScriptContent(projectId, state.scriptContent)
+    }
+  }, [state.scriptContent, projectId])
 
   useEffect(() => {
     if (state.sessions.length > 0) {

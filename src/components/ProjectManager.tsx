@@ -6,7 +6,6 @@ export function ProjectManager() {
   const [name, setName] = useState('')
   const [sheetUrl, setSheetUrl] = useState('')
   const [docUrl, setDocUrl] = useState('')
-  const [relayUrl, setRelayUrl] = useState('')
   const [group, setGroup] = useState('')
   const [groupColor, setGroupColor] = useState('#6366f1')
   const [shared, setShared] = useState(true)
@@ -18,12 +17,11 @@ export function ProjectManager() {
   const demoUrl = 'https://docs.google.com/spreadsheets/d/10GJlo_5HS7Z9z5xm-BM5uNzTyhZ01v5SwPpzu7vtqE4/edit?usp=sharing'
 
   const handleCreate = async () => {
-    if (!name.trim() || !sheetUrl.trim()) return
-    await createProject(name.trim(), sheetUrl.trim(), docUrl.trim(), relayUrl.trim(), group.trim(), groupColor, shared)
+    if (!name.trim()) return
+    await createProject(name.trim(), sheetUrl.trim(), docUrl.trim(), '', group.trim(), groupColor, shared)
     setName('')
     setSheetUrl('')
     setDocUrl('')
-    setRelayUrl('')
     setGroup('')
     setGroupColor('#6366f1')
     setShared(true)
@@ -108,7 +106,6 @@ export function ProjectManager() {
                     <div className="project-meta">
                       {p.sheetUrl && <span>📋 Sheet linked</span>}
                       {p.docUrl && <span>📜 Doc linked</span>}
-                      {p.relayUrl && <span>📡 Relay linked</span>}
                       {p.group && <span className="project-group-tag" style={{ color: p.groupColor }}>{p.group}</span>}
                       <span
                         className={`project-share-tag ${p.shared === false ? 'local' : 'shared'}`}
@@ -116,7 +113,7 @@ export function ProjectManager() {
                           e.stopPropagation()
                           updateProject(p.id, { shared: p.shared === false })
                         }}
-                        title={p.shared === false ? 'Local only — click to share with crew' : 'Shared with crew — click to make local'}
+                        title={p.shared === false ? 'Private — only visible to you. Click to share with crew.' : 'Shared with crew — click to make private'}
                       >
                         {p.shared === false ? '🔒 Local' : '🌐 Shared'}
                       </span>
@@ -148,14 +145,14 @@ export function ProjectManager() {
               <label className="setup-label">Project Name *</label>
               <input className="setup-input" type="text" placeholder="e.g. Car Shoot 2026" value={name} onChange={e => setName(e.target.value)} />
 
-              <label className="setup-label">Google Sheets URL *</label>
+              <label className="setup-label">
+                Google Sheets URL (optional)
+                <span className="label-hint">Link the shot list — can be added later</span>
+              </label>
               <input className="setup-input" type="text" placeholder="https://docs.google.com/spreadsheets/d/..." value={sheetUrl} onChange={e => setSheetUrl(e.target.value)} />
 
               <label className="setup-label">Google Doc URL (optional)</label>
               <input className="setup-input" type="text" placeholder="https://docs.google.com/document/d/..." value={docUrl} onChange={e => setDocUrl(e.target.value)} />
-
-              <label className="setup-label">Relay URL (optional)</label>
-              <input className="setup-input" type="text" placeholder="https://script.google.com/macros/s/..." value={relayUrl} onChange={e => setRelayUrl(e.target.value)} />
 
               <label className="setup-label">Group</label>
               <input className="setup-input" type="text" placeholder="e.g. Client A, Personal, Work" value={group} onChange={e => setGroup(e.target.value)} />
@@ -174,23 +171,23 @@ export function ProjectManager() {
                   className={`btn btn-sm ${shared ? 'btn-primary' : 'btn-ghost'}`}
                   onClick={(e) => { e.preventDefault(); setShared(true) }}
                 >
-                  🌐 Shared (NAS sync)
+                  🌐 Shared with crew
                 </button>
                 <button
                   className={`btn btn-sm ${!shared ? 'btn-primary' : 'btn-ghost'}`}
                   onClick={(e) => { e.preventDefault(); setShared(false) }}
                 >
-                  🔒 Local only
+                  🔒 Private to me
                 </button>
               </div>
               <p className="setup-hint">
                 {shared
-                  ? 'Shared projects sync to the NAS so the whole crew sees them from any device.'
-                  : 'Local projects stay on this device only — not uploaded to the NAS.'}
+                  ? 'Shared projects are visible to the whole crew from any device.'
+                  : 'Private projects are only visible to you when logged in.'}
               </p>
 
               <div className="project-form-buttons">
-                <button className="btn-primary" onClick={handleCreate} disabled={!name.trim() || !sheetUrl.trim()}>
+                <button className="btn-primary" onClick={handleCreate} disabled={!name.trim()}>
                   Create Project
                 </button>
                 <button className="btn-secondary" onClick={() => setShowNewForm(false)}>

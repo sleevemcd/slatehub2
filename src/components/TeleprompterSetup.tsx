@@ -8,15 +8,12 @@ function generateSessionId(): string {
 export function TeleprompterSetup() {
   const { state, dispatch } = useApp()
   const [docUrl, setDocUrl] = useState(state.teleprompter.docUrl || '')
-  const [relayUrl, setRelayUrl] = useState(state.teleprompter.relayUrl || '')
   const [sessionId, setSessionId] = useState(state.teleprompter.sessionId || generateSessionId())
   const [mode, setMode] = useState<'display' | 'remote'>('display')
 
   useEffect(() => {
     const saved = localStorage.getItem('slatehub-tp-doc-url')
     if (saved) setDocUrl(saved)
-    const savedRelay = localStorage.getItem('slatehub-tp-relay-url')
-    if (savedRelay) setRelayUrl(savedRelay)
   }, [])
 
   const start = () => {
@@ -27,10 +24,7 @@ export function TeleprompterSetup() {
     if (trimmed) {
       localStorage.setItem('slatehub-tp-doc-url', trimmed)
     }
-    const finalRelay = relayUrl.trim() || `${window.location.origin}/api/relay`
-    if (relayUrl.trim()) {
-      localStorage.setItem('slatehub-tp-relay-url', relayUrl.trim())
-    }
+    const finalRelay = `${window.location.origin}/api/relay`
 
     dispatch({ type: 'SET_TELEPROMPTER_CONFIG', config: { docUrl: trimmed, sessionId, relayUrl: finalRelay } })
     dispatch({ type: 'SET_VIEW', view: mode === 'display' ? 'teleprompter-view' : 'teleprompter-remote' })
@@ -63,18 +57,6 @@ export function TeleprompterSetup() {
             value={docUrl}
             onChange={e => setDocUrl(e.target.value)}
             onKeyDown={e => e.key === 'Enter' && start()}
-          />
-
-          <label className="setup-label">
-            Relay URL (optional)
-            <span className="label-hint">Leave empty for automatic relay via NAS</span>
-          </label>
-          <input
-            className="setup-input"
-            type="text"
-            placeholder="https://script.google.com/macros/s/... (or leave empty)"
-            value={relayUrl}
-            onChange={e => setRelayUrl(e.target.value)}
           />
 
           <label className="setup-label">Session ID</label>
@@ -163,7 +145,7 @@ export function TeleprompterSetup() {
         <ul>
           <li>Open the Teleprompter on your main device (Display mode)</li>
           <li>Open the Remote Control on another phone/tablet (same session ID)</li>
-          <li>Drag the scroll bar on the remote — the display should follow</li>
+          <li>Drag on the remote's script area — the display should follow</li>
           <li>A green dot (●) shows when connected; a red dot (○) means no connection</li>
         </ul>
       </div>

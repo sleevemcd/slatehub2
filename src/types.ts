@@ -8,6 +8,7 @@ export interface Project {
   relayUrl: string
   createdAt: string
   shared?: boolean
+  ownerEmail?: string
 }
 
 export interface CrewMember {
