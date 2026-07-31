@@ -331,7 +331,7 @@ export function ScriptReview() {
         <div className="script-review-header-actions">
           {state.teleprompter.googleApiKey && state.teleprompter.googleClientId && (
             <button className="btn btn-ghost btn-sm" onClick={() =>
-              openGooglePicker(state.teleprompter.googleApiKey, state.teleprompter.googleClientId, async (url, name) => {
+              openGooglePicker(state.teleprompter.googleApiKey, state.teleprompter.googleClientId, async (url) => {
                 setDocUrl(url)
                 setScriptError('')
                 const result = await fetchDocViaDriveApi(url)

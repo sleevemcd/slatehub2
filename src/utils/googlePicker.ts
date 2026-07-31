@@ -1,5 +1,12 @@
 type PickerCallback = (docUrl: string, docName: string) => void
 
+declare global {
+  interface Window {
+    gapi?: any
+    google?: any
+  }
+}
+
 let loaded = false
 let loadQueue: (() => void)[] = []
 
@@ -15,7 +22,7 @@ function loadLibraries(): Promise<void> {
       const api = document.createElement('script')
       api.src = 'https://apis.google.com/js/api.js'
       api.onload = () => {
-        gapi.load('picker', () => {
+        window.gapi.load('picker', () => {
           loaded = true
           loadQueue.forEach(cb => cb())
           loadQueue = []
@@ -33,7 +40,7 @@ let accessToken = ''
 function getOAuthToken(clientId: string, callback: () => void) {
   if (accessToken) { callback(); return }
   if (!tokenClient) {
-    tokenClient = google.accounts.oauth2.initTokenClient({
+    tokenClient = window.google.accounts.oauth2.initTokenClient({
       client_id: clientId,
       scope: 'https://www.googleapis.com/auth/drive.readonly',
       callback: (resp: any) => {
@@ -76,9 +83,9 @@ export function openGooglePicker(apiKey: string, clientId: string, onPick: Picke
   if (!apiKey || !clientId) return
   loadLibraries().then(() => {
     getOAuthToken(clientId, () => {
-      const picker = new google.picker.PickerBuilder()
-        .addView(google.picker.ViewId.DOCUMENTS)
-        .addView(google.picker.ViewId.DOCS_VIDEOS)
+      const picker = new window.google.picker.PickerBuilder()
+        .addView(window.google.picker.ViewId.DOCUMENTS)
+        .addView(window.google.picker.ViewId.DOCS_VIDEOS)
         .setOAuthToken(accessToken)
         .setDeveloperKey(apiKey)
         .setCallback((data: any) => {

@@ -7,8 +7,6 @@ function generateId(): string {
   return Date.now().toString(36) + '-' + Math.random().toString(36).substring(2, 8)
 }
 
-const FPS = 30
-
 function formatTcFromDate(date: Date): string {
   const h = date.getHours()
   const m = date.getMinutes()
@@ -201,12 +199,6 @@ export function MarkersView() {
 
   const sessionMarkers = state.markers.filter(m => m.projectId === state.activeProjectId)
   const sorted = [...sessionMarkers].sort((a, b) => a.timecode.localeCompare(b.timecode))
-
-  function tcToFrames(tc: string): number {
-    const p = tc.split(':').map(Number)
-    if (p.length !== 4 || p.some(isNaN)) return 0
-    return ((p[0] * 3600) + (p[1] * 60) + p[2]) * FPS + p[3]
-  }
 
   function hexToResolveColor(hex: string): string {
     const map: Record<string, string> = {

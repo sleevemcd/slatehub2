@@ -132,7 +132,7 @@ export function LoginView() {
 
           {error && <div className="login-error">{error}</div>}
 
-          <button className="btn-primary login-btn" type="submit">
+          <button className="btn-primary login-btn" type="submit" disabled={busy}>
             {isRegister ? 'Create Account' : 'Sign In'}
           </button>
         </form>

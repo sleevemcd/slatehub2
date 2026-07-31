@@ -15,14 +15,19 @@ async function loadFromApi(): Promise<Partial<AppState> | null> {
   } catch { return null }
 }
 
-async function saveToApi(state: Partial<AppState>) {
+interface ApiSnapshot extends Partial<AppState> {
+  projectsData?: Record<string, unknown>
+}
+
+async function saveToApi(state: ApiSnapshot): Promise<boolean> {
   try {
-    await fetch(`${API_BASE}/data`, {
+    const res = await fetch(`${API_BASE}/data`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(state),
     })
-  } catch { /* silent fail — fallback to localStorage */ }
+    return res.ok
+  } catch { return false }
 }
 
 type Action =
@@ -81,6 +86,8 @@ type Action =
   | { type: 'CREATE_PROJECT'; project: Project }
   | { type: 'UPDATE_PROJECT'; id: string; data: Partial<Project> }
   | { type: 'DELETE_PROJECT'; id: string }
+  | { type: 'JOIN_PROJECT'; id: string }
+  | { type: 'LEAVE_PROJECT'; id: string }
   | { type: 'SET_ACTIVE_PROJECT'; id: string | null }
   | { type: 'LOAD_PROJECT_DATA'; shots: ShotRecord[]; takes: Take[]; sheetUrl: string; writeBackUrl: string; teleprompter: TeleprompterConfig }
   | { type: 'SET_SHOT_CREW'; row: number; crew: string[] }
@@ -203,11 +210,14 @@ function saveMarkers(projectId: string | null, markers: ShotMarker[]) {
   localStorage.setItem(markerStorageKey(projectId), JSON.stringify(markers))
 }
 
-function loadSessions(): MarkerSession[] {
+function loadSessions(projectId: string | null): MarkerSession[] {
   try {
-    const raw = localStorage.getItem('slatehub-sessions')
-    return raw ? JSON.parse(raw) : []
-  } catch { return [] }
+    const raw = localStorage.getItem(`slatehub-sessions-${projectId || 'default'}`)
+    if (raw) return JSON.parse(raw)
+    const legacy = localStorage.getItem('slatehub-sessions')
+    if (legacy) return JSON.parse(legacy)
+  } catch {}
+  return []
 }
 
 function scriptStorageKey(projectId: string | null): string {
@@ -224,8 +234,42 @@ function saveScriptContent(projectId: string | null, content: string) {
   localStorage.setItem(scriptStorageKey(projectId), content)
 }
 
-function saveSessions(sessions: MarkerSession[]) {
-  localStorage.setItem('slatehub-sessions', JSON.stringify(sessions))
+function saveSessions(projectId: string | null, sessions: MarkerSession[]) {
+  localStorage.setItem(`slatehub-sessions-${projectId || 'default'}`, JSON.stringify(sessions))
+}
+
+function loadJoinedProjects(): string[] {
+  try {
+    const raw = localStorage.getItem('slatehub-joined-projects')
+    return raw ? JSON.parse(raw) : []
+  } catch { return [] }
+}
+
+function saveJoinedProjects(ids: string[]) {
+  localStorage.setItem('slatehub-joined-projects', JSON.stringify(ids))
+}
+
+const ACCESS_CODE_ALPHABET = 'ABCDEFGHJKMNPQRSTUVWXYZ23456789'
+
+export function generateAccessCode(): string {
+  let code = ''
+  const bytes = new Uint32Array(6)
+  crypto.getRandomValues(bytes)
+  for (let i = 0; i < 6; i++) code += ACCESS_CODE_ALPHABET[bytes[i] % ACCESS_CODE_ALPHABET.length]
+  return code
+}
+
+function isProjectLocked(project: Project, currentUser: User, joinedIds: string[]): boolean {
+  if (project.shared === false) return false
+  const ownerKey = (project.ownerEmail || '').toLowerCase()
+  const userKey = (currentUser?.email || currentUser?.name || '').toLowerCase()
+  if (ownerKey && ownerKey === userKey) return false
+  if (!project.accessCode) return false
+  return !joinedIds.includes(project.id)
+}
+
+function canOpenProject(project: Project, currentUser: User, joinedIds: string[]): boolean {
+  return !isProjectLocked(project, currentUser, joinedIds)
 }
 
 function loadCrewData(projectId: string | null): { shotCrew: Record<number, string[]>; members: CrewMember[] } {
@@ -246,6 +290,7 @@ const initialState: AppState = {
   theme: getInitialTheme(),
   view: 'setup',
   projects: loadProjects(),
+  joinedProjects: loadJoinedProjects(),
   activeProjectId: getLastProjectId(),
   sheetUrl: '',
   shots: [],
@@ -478,6 +523,18 @@ function reducer(state: AppState, action: Action): AppState {
         shots: state.activeProjectId === action.id ? [] : state.shots,
         takes: state.activeProjectId === action.id ? [] : state.takes,
       }
+    case 'JOIN_PROJECT': {
+      const joined = state.joinedProjects.includes(action.id)
+        ? state.joinedProjects
+        : [...state.joinedProjects, action.id]
+      saveJoinedProjects(joined)
+      return { ...state, joinedProjects: joined }
+    }
+    case 'LEAVE_PROJECT': {
+      const joined = state.joinedProjects.filter(id => id !== action.id)
+      saveJoinedProjects(joined)
+      return { ...state, joinedProjects: joined }
+    }
     case 'SET_ACTIVE_PROJECT':
       return { ...state, activeProjectId: action.id }
     case 'LOAD_PROJECT_DATA':
@@ -549,8 +606,12 @@ interface AppContextType {
   switchProject: (id: string) => Promise<void>
   deleteProject: (id: string) => void
   updateProject: (id: string, data: Partial<Project>) => void
+  joinProject: (id: string, code: string) => boolean
+  leaveProject: (id: string) => void
+  regenerateAccessCode: (id: string) => void
   activeProject: Project | null
   login: (user: User) => void
+  registerUser: (user: User) => void
   updateShotCrew: (row: number, crew: string[]) => void
   addCrewMember: (member: CrewMember) => void
   removeCrewMember: (name: string) => void
@@ -596,7 +657,8 @@ export function AppProvider({ children }: { children: ReactNode }) {
       relayUrl: relayUrl || DEFAULT_RELAY_URL,
       createdAt: new Date().toISOString(),
       shared,
-      ownerEmail: shared ? undefined : (state.currentUser?.email || state.currentUser?.name || ''),
+      ownerEmail: state.currentUser?.email || state.currentUser?.name || '',
+      accessCode: shared ? generateAccessCode() : undefined,
     }
     dispatch({ type: 'CREATE_PROJECT', project })
     dispatch({ type: 'SET_ACTIVE_PROJECT', id: project.id })
@@ -614,59 +676,66 @@ export function AppProvider({ children }: { children: ReactNode }) {
     }
   }, [state.projects, state.currentUser, loadShots])
 
-  const loadProjectDataFromApi = useCallback(async (projectId: string): Promise<Record<string, any>> => {
+  const loadProjectDataFromApi = useCallback(async (projectId: string): Promise<{ found: boolean; data: Partial<AppState> & { markers?: ShotMarker[]; sessions?: MarkerSession[]; scriptContent?: string } }> => {
     try {
       const res = await fetch(`${API_BASE}/data`)
-      if (!res.ok) return {}
+      if (!res.ok) return { found: false, data: {} }
       const data = await res.json()
-      return data?.projectsData?.[projectId] || {}
-    } catch { return {} }
+      const pd = data?.projectsData?.[projectId]
+      if (pd !== undefined) return { found: true, data: pd }
+      return {
+        found: true,
+        data: {
+          shots: data.shots,
+          sheetUrl: data.sheetUrl,
+          takes: data.takes,
+          markers: data.markers,
+          sessions: data.sessions,
+          scriptContent: data.scriptContent,
+        },
+      }
+    } catch { return { found: false, data: {} } }
   }, [])
 
   const switchProject = useCallback(async (id: string) => {
     const project = state.projects.find(p => p.id === id)
     if (!project) return
+    if (!canOpenProject(project, state.currentUser, loadJoinedProjects())) {
+      dispatch({ type: 'SET_VIEW', view: 'project-manager' })
+      return
+    }
     loadingProjectRef.current = id
     dispatch({ type: 'SWITCH_PROJECT', id })
     dispatch({ type: 'SET_TELEPROMPTER_CONFIG', config: { docUrl: project.docUrl, relayUrl: project.relayUrl || DEFAULT_RELAY_URL, sessionId: '' } })
     dispatch({ type: 'SET_WRITE_BACK_URL', url: project.relayUrl })
     localStorage.setItem('slatehub-active-project', id)
-    const pd = await loadProjectDataFromApi(id)
-    if (pd.shots?.length) dispatch({ type: 'SET_SHOTS', shots: pd.shots })
-    if (pd.sheetUrl) dispatch({ type: 'SET_SHEET_URL', url: pd.sheetUrl })
-    if (pd.takes?.length) dispatch({ type: 'SET_TAKES', takes: pd.takes })
-    if (pd.markers?.length) dispatch({ type: 'SET_MARKERS', markers: pd.markers })
-    if (pd.sessions?.length) dispatch({ type: 'SET_SESSIONS', sessions: pd.sessions })
-    if (pd.scriptContent) dispatch({ type: 'SET_SCRIPT_CONTENT', content: pd.scriptContent })
-    if (!pd.shots?.length) {
+    const { found, data: pd } = await loadProjectDataFromApi(id)
+    if (found) {
+      if (Array.isArray(pd.shots)) dispatch({ type: 'SET_SHOTS', shots: pd.shots })
+      if (pd.sheetUrl !== undefined) dispatch({ type: 'SET_SHEET_URL', url: pd.sheetUrl || '' })
+      if (Array.isArray(pd.takes)) dispatch({ type: 'SET_TAKES', takes: pd.takes })
+      if (Array.isArray(pd.markers)) dispatch({ type: 'SET_MARKERS', markers: pd.markers })
+      if (Array.isArray(pd.sessions)) dispatch({ type: 'SET_SESSIONS', sessions: pd.sessions })
+      if (pd.scriptContent !== undefined) dispatch({ type: 'SET_SCRIPT_CONTENT', content: pd.scriptContent || '' })
+    } else {
       const local = loadShotData(id)
-      if (local.shots.length > 0) {
-        dispatch({ type: 'SET_SHOTS', shots: local.shots })
-        if (local.sheetUrl) dispatch({ type: 'SET_SHEET_URL', url: local.sheetUrl })
-      }
-    }
-    if (!pd.takes?.length) {
+      dispatch({ type: 'SET_SHOTS', shots: local.shots })
+      if (local.sheetUrl) dispatch({ type: 'SET_SHEET_URL', url: local.sheetUrl })
       const localTakes = loadTakes(id)
-      if (localTakes.length > 0) dispatch({ type: 'SET_TAKES', takes: localTakes })
-    }
-    if (!pd.markers?.length) {
+      dispatch({ type: 'SET_TAKES', takes: localTakes })
       const localMarkers = loadMarkers(id)
-      if (localMarkers.length > 0) dispatch({ type: 'SET_MARKERS', markers: localMarkers })
-    }
-    if (!pd.sessions?.length) {
-      const localSessions = loadSessions()
-      if (localSessions.length > 0) dispatch({ type: 'SET_SESSIONS', sessions: localSessions })
-    }
-    if (!pd.scriptContent) {
+      dispatch({ type: 'SET_MARKERS', markers: localMarkers })
+      const localSessions = loadSessions(id)
+      dispatch({ type: 'SET_SESSIONS', sessions: localSessions })
       const localScript = loadScriptContent(id)
-      if (localScript) dispatch({ type: 'SET_SCRIPT_CONTENT', content: localScript })
+      dispatch({ type: 'SET_SCRIPT_CONTENT', content: localScript })
     }
     loadingProjectRef.current = null
     dispatch({ type: 'SET_VIEW', view: 'shots' })
-    if (project.sheetUrl && !pd.shots?.length) {
+    if (project.sheetUrl && !found) {
       await loadShots(project.sheetUrl)
     }
-  }, [state.projects, loadProjectDataFromApi, loadShots])
+  }, [state.projects, state.currentUser, loadProjectDataFromApi, loadShots])
 
   const deleteProject = useCallback((id: string) => {
     dispatch({ type: 'DELETE_PROJECT', id })
@@ -682,11 +751,41 @@ export function AppProvider({ children }: { children: ReactNode }) {
     const next = { ...data }
     if ('shared' in data) {
       next.ownerEmail = data.shared ? undefined : (state.currentUser?.email || state.currentUser?.name || '')
+      next.accessCode = data.shared ? generateAccessCode() : undefined
     }
     dispatch({ type: 'UPDATE_PROJECT', id, data: next })
     const projects = state.projects.map(p => p.id === id ? { ...p, ...next } : p)
     saveProjects(projects)
   }, [state.projects, state.currentUser])
+
+  const joinProject = useCallback((id: string, code: string): boolean => {
+    const project = state.projects.find(p => p.id === id)
+    if (!project) return false
+    if (!project.accessCode) {
+      dispatch({ type: 'JOIN_PROJECT', id })
+      return true
+    }
+    const given = code.trim().toUpperCase()
+    if (given !== project.accessCode.toUpperCase()) return false
+    dispatch({ type: 'JOIN_PROJECT', id })
+    return true
+  }, [state.projects])
+
+  const leaveProject = useCallback((id: string) => {
+    dispatch({ type: 'LEAVE_PROJECT', id })
+    if (state.activeProjectId === id) {
+      localStorage.removeItem('slatehub-active-project')
+      dispatch({ type: 'SET_ACTIVE_PROJECT', id: null })
+      dispatch({ type: 'SET_VIEW', view: 'project-manager' })
+    }
+  }, [state.activeProjectId])
+
+  const regenerateAccessCode = useCallback((id: string) => {
+    const code = generateAccessCode()
+    dispatch({ type: 'UPDATE_PROJECT', id, data: { accessCode: code } })
+    const projects = state.projects.map(p => p.id === id ? { ...p, accessCode: code } : p)
+    saveProjects(projects)
+  }, [state.projects])
 
   const activeProject = state.projects.find(p => p.id === state.activeProjectId) || null
 
@@ -878,12 +977,32 @@ export function AppProvider({ children }: { children: ReactNode }) {
   }, [])
 
   const saveTimer = useRef<ReturnType<typeof setTimeout> | undefined>(undefined)
+  const globalSaveTimer = useRef<ReturnType<typeof setTimeout> | undefined>(undefined)
   const prevSaveRef = useRef('')
+  const lastSyncedRef = useRef('')
+  const currentProjectDataRef = useRef('')
   const loadingProjectRef = useRef<string | null>(null)
   useEffect(() => {
-    const projectData = (state.activeProjectId && loadingProjectRef.current !== state.activeProjectId)
+    const snapshot = JSON.stringify({
+      projects: state.projects,
+      activeProjectId: state.activeProjectId,
+      crewMembers: state.crewMembers,
+      quickMessages: state.quickMessages,
+      savedUsers: state.savedUsers,
+      theme: state.theme,
+    })
+    if (snapshot === prevSaveRef.current) return
+    prevSaveRef.current = snapshot
+    if (globalSaveTimer.current) clearTimeout(globalSaveTimer.current)
+    globalSaveTimer.current = setTimeout(() => saveToApi(JSON.parse(snapshot)), 800)
+    return () => { if (globalSaveTimer.current) clearTimeout(globalSaveTimer.current) }
+  }, [state.projects, state.activeProjectId, state.crewMembers, state.quickMessages, state.savedUsers, state.theme])
+
+  useEffect(() => {
+    const activeId = state.activeProjectId
+    const projectData = (activeId && loadingProjectRef.current !== activeId)
       ? {
-          [state.activeProjectId]: {
+          [activeId]: {
             shots: state.shots,
             sheetUrl: state.sheetUrl,
             takes: state.takes,
@@ -893,21 +1012,56 @@ export function AppProvider({ children }: { children: ReactNode }) {
           },
         }
       : {}
-    const snapshot = JSON.stringify({
-      projects: state.projects,
-      activeProjectId: state.activeProjectId,
-      crewMembers: state.crewMembers,
-      quickMessages: state.quickMessages,
-      savedUsers: state.savedUsers,
-      theme: state.theme,
-      projectsData: projectData,
-    })
-    if (snapshot === prevSaveRef.current) return
-    prevSaveRef.current = snapshot
-    if (saveTimer.current) clearTimeout(saveTimer.current)
-    saveTimer.current = setTimeout(() => saveToApi(JSON.parse(snapshot)), 1000)
+    const projectDataJson = activeId && projectData[activeId] ? JSON.stringify(projectData[activeId]) : ''
+    currentProjectDataRef.current = projectDataJson
+    if (activeId && projectDataJson && projectDataJson !== lastSyncedRef.current) {
+      if (saveTimer.current) clearTimeout(saveTimer.current)
+      saveTimer.current = setTimeout(async () => {
+        const ok = await saveToApi({ projectsData: projectData })
+        if (ok) lastSyncedRef.current = projectDataJson
+      }, 1000)
+    }
     return () => { if (saveTimer.current) clearTimeout(saveTimer.current) }
-  }, [state.projects, state.activeProjectId, state.crewMembers, state.quickMessages, state.savedUsers, state.theme, state.shots, state.sheetUrl, state.takes, state.markers, state.sessions, state.scriptContent])
+  }, [state.activeProjectId, state.shots, state.sheetUrl, state.takes, state.markers, state.sessions, state.scriptContent])
+
+  useEffect(() => {
+    if (!state.activeProjectId || loadingProjectRef.current === state.activeProjectId) return
+    const id = state.activeProjectId
+    const poll = async () => {
+      if (loadingProjectRef.current === id) return
+      const { found, data } = await loadProjectDataFromApi(id)
+      if (!found) return
+      if (currentProjectDataRef.current !== lastSyncedRef.current) return
+      const complete = Array.isArray(data.shots) && Array.isArray(data.takes) &&
+        Array.isArray(data.markers) && Array.isArray(data.sessions) &&
+        typeof data.sheetUrl === 'string' && typeof data.scriptContent === 'string'
+      if (!complete) return
+      const shots = data.shots as ShotRecord[]
+      const takes = data.takes as Take[]
+      const markers = data.markers as ShotMarker[]
+      const sessions = data.sessions as MarkerSession[]
+      const sheetUrl = data.sheetUrl as string
+      const scriptContent = data.scriptContent as string
+      const remoteJson = JSON.stringify({
+        shots,
+        sheetUrl,
+        takes,
+        markers,
+        sessions,
+        scriptContent,
+      })
+      if (remoteJson === lastSyncedRef.current) return
+      dispatch({ type: 'SET_SHOTS', shots })
+      dispatch({ type: 'SET_SHEET_URL', url: sheetUrl })
+      dispatch({ type: 'SET_TAKES', takes })
+      dispatch({ type: 'SET_MARKERS', markers })
+      dispatch({ type: 'SET_SESSIONS', sessions })
+      dispatch({ type: 'SET_SCRIPT_CONTENT', content: scriptContent })
+      lastSyncedRef.current = remoteJson
+    }
+    const timer = setInterval(poll, 3000)
+    return () => { clearInterval(timer) }
+  }, [state.activeProjectId, loadProjectDataFromApi])
 
   const loadedRef = useRef(false)
   useEffect(() => {
@@ -917,27 +1071,23 @@ export function AppProvider({ children }: { children: ReactNode }) {
       const apiProjects = (apiData?.projects as Project[] | undefined) || []
       const localProjects = loadProjects()
       const ownerKey = (state.currentUser?.email || state.currentUser?.name || '').toLowerCase()
-      const visibleApi = apiProjects.filter(p =>
-        p.shared !== false || (p.ownerEmail || '').toLowerCase() === ownerKey
-      )
-      const merged = visibleApi.length > 0
-        ? [
-            ...visibleApi,
-            ...localProjects.filter(lp =>
-              lp.shared === false &&
-              (lp.ownerEmail || '').toLowerCase() === ownerKey &&
-              !visibleApi.some(ap => ap.id === lp.id)
-            ),
-          ]
-        : localProjects.filter(lp =>
-            lp.shared === false && (lp.ownerEmail || '').toLowerCase() === ownerKey
-          )
+      const ownOrVisible = (p: Project) => p.shared === false
+        ? (p.ownerEmail || '').toLowerCase() === ownerKey
+        : true
+      const visibleApi = apiProjects.filter(ownOrVisible)
+      const merged = apiProjects.length > 0
+        ? visibleApi
+        : localProjects.filter(ownOrVisible)
       if (merged.length > 0) {
         dispatch({ type: 'SET_PROJECTS', projects: merged })
       }
-      const loadedActive = (apiData?.activeProjectId && merged.some(p => p.id === apiData.activeProjectId))
-        ? apiData.activeProjectId
-        : (merged[0]?.id || null)
+      const candidates = (apiData?.activeProjectId && merged.some(p => p.id === apiData.activeProjectId))
+        ? [apiData.activeProjectId, ...merged.map(p => p.id)]
+        : merged.map(p => p.id)
+      const loadedActive = candidates.find(id => {
+        const p = merged.find(m => m.id === id)
+        return p && canOpenProject(p, state.currentUser, state.joinedProjects)
+      }) || null
       if (loadedActive) {
         dispatch({ type: 'SET_ACTIVE_PROJECT', id: loadedActive })
       }
@@ -953,82 +1103,73 @@ export function AppProvider({ children }: { children: ReactNode }) {
       if (apiData?.theme) {
         dispatch({ type: 'SET_THEME', theme: apiData.theme })
       }
-      const pd: Record<string, any> = (apiData as any)?.projectsData?.[loadedActive || ''] || {}
-      if (pd.scriptContent || (apiData as any)?.scriptContent) {
-        dispatch({ type: 'SET_SCRIPT_CONTENT', content: pd.scriptContent || (apiData as any)?.scriptContent })
+      if (!loadedActive) return
+      const rawPd = (apiData as any)?.projectsData?.[loadedActive]
+      const useServer = apiData !== null && apiData !== undefined
+      if (useServer) {
+        const pd = rawPd !== undefined ? rawPd : {
+          shots: apiData.shots,
+          sheetUrl: apiData.sheetUrl,
+          takes: apiData.takes,
+          markers: apiData.markers,
+          sessions: apiData.sessions,
+          scriptContent: apiData.scriptContent,
+        }
+        if (Array.isArray(pd.shots)) dispatch({ type: 'SET_SHOTS', shots: pd.shots })
+        dispatch({ type: 'SET_SHEET_URL', url: pd.sheetUrl || '' })
+        if (Array.isArray(pd.takes)) dispatch({ type: 'SET_TAKES', takes: pd.takes })
+        if (Array.isArray(pd.markers)) dispatch({ type: 'SET_MARKERS', markers: pd.markers })
+        if (Array.isArray(pd.sessions)) dispatch({ type: 'SET_SESSIONS', sessions: pd.sessions })
+        dispatch({ type: 'SET_SCRIPT_CONTENT', content: pd.scriptContent || '' })
       } else {
+        const local = loadShotData(loadedActive)
+        dispatch({ type: 'SET_SHOTS', shots: local.shots })
+        if (local.sheetUrl) dispatch({ type: 'SET_SHEET_URL', url: local.sheetUrl })
+        const localTakes = loadTakes(loadedActive)
+        dispatch({ type: 'SET_TAKES', takes: localTakes })
+        const localMarkers = loadMarkers(loadedActive)
+        dispatch({ type: 'SET_MARKERS', markers: localMarkers })
+        const localSessions = loadSessions(loadedActive)
+        dispatch({ type: 'SET_SESSIONS', sessions: localSessions })
         const localScript = loadScriptContent(loadedActive)
-        if (localScript) dispatch({ type: 'SET_SCRIPT_CONTENT', content: localScript })
-      }
-      const projShots = pd.shots?.length
-        ? pd.shots
-        : ((apiData?.shots as ShotRecord[] | undefined)?.length
-          ? apiData.shots
-          : loadShotData(loadedActive).shots)
-      const projSheetUrl = pd.sheetUrl || apiData?.sheetUrl || loadShotData(loadedActive).sheetUrl
-      if (projShots.length > 0) {
-        dispatch({ type: 'SET_SHOTS', shots: projShots })
-      }
-      if (projSheetUrl) {
-        dispatch({ type: 'SET_SHEET_URL', url: projSheetUrl })
-      }
-      const projTakes = pd.takes?.length
-        ? pd.takes
-        : ((apiData?.takes as Take[] | undefined)?.length ? apiData.takes : loadTakes(loadedActive))
-      if (projTakes.length > 0) {
-        projTakes.forEach(t => dispatch({ type: 'ADD_TAKE', take: t }))
-      }
-      const projMarkers = pd.markers?.length
-        ? pd.markers
-        : ((apiData?.markers as ShotMarker[] | undefined)?.length ? apiData.markers : loadMarkers(loadedActive))
-      if (projMarkers.length > 0) {
-        projMarkers.forEach(m => dispatch({ type: 'ADD_MARKER', marker: m }))
-      }
-      const projSessions = pd.sessions?.length
-        ? pd.sessions
-        : ((apiData?.sessions as MarkerSession[] | undefined)?.length ? apiData.sessions : loadSessions())
-      if (projSessions.length > 0) {
-        projSessions.forEach(s => dispatch({ type: 'ADD_SESSION', session: s }))
+        dispatch({ type: 'SET_SCRIPT_CONTENT', content: localScript })
       }
     })
   }, [])
 
   const projectId = state.activeProjectId
   useEffect(() => {
-    if (state.shots.length > 0 || state.sheetUrl) {
-      saveShotData(projectId, state.shots, state.sheetUrl)
-    }
+    if (!projectId || loadingProjectRef.current === projectId) return
+    saveShotData(projectId, state.shots, state.sheetUrl)
   }, [state.shots, state.sheetUrl, projectId])
 
   useEffect(() => {
-    if (state.takes.length > 0) {
-      saveTakes(projectId, state.takes)
-    }
+    if (!projectId || loadingProjectRef.current === projectId) return
+    saveTakes(projectId, state.takes)
   }, [state.takes, projectId])
 
   useEffect(() => {
-    if (state.markers.length > 0) {
-      saveMarkers(projectId, state.markers)
-    }
+    if (!projectId || loadingProjectRef.current === projectId) return
+    saveMarkers(projectId, state.markers)
   }, [state.markers, projectId])
 
   useEffect(() => {
-    if (state.scriptContent) {
-      saveScriptContent(projectId, state.scriptContent)
-    }
+    if (!projectId || loadingProjectRef.current === projectId) return
+    saveScriptContent(projectId, state.scriptContent)
   }, [state.scriptContent, projectId])
 
   useEffect(() => {
-    if (state.sessions.length > 0) {
-      saveSessions(state.sessions)
-    }
-  }, [state.sessions])
+    if (!projectId || loadingProjectRef.current === projectId) return
+    saveSessions(projectId, state.sessions)
+  }, [state.sessions, projectId])
 
   return (
     <AppContext.Provider value={{
       state, dispatch, loadShots, openSlate, closeSlate, goToView, goToNextShot, goToPrevShot,
       recordTake, updateTake, toggleDone, setShotPriority, deleteShot, deleteShots, updateShot, reorderShots,
-      toggleTheme, createProject, switchProject, deleteProject, updateProject, activeProject, login, registerUser,
+      toggleTheme, createProject, switchProject, deleteProject, updateProject, joinProject, leaveProject, regenerateAccessCode,
+      activeProject,
+      login, registerUser,
       updateShotCrew, addCrewMember, removeCrewMember, updateCrewMember,
       addNotification, markNotificationRead, clearNotifications, triggerOnDeck,
     }}>

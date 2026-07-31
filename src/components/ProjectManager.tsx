@@ -2,7 +2,7 @@ import { useState } from 'react'
 import { useApp } from '../context/AppContext'
 
 export function ProjectManager() {
-  const { state, createProject, switchProject, deleteProject, updateProject } = useApp()
+  const { state, createProject, switchProject, deleteProject, updateProject, joinProject, leaveProject, regenerateAccessCode } = useApp()
   const [name, setName] = useState('')
   const [sheetUrl, setSheetUrl] = useState('')
   const [docUrl, setDocUrl] = useState('')
@@ -13,8 +13,39 @@ export function ProjectManager() {
   const [editingId, setEditingId] = useState<string | null>(null)
   const [editName, setEditName] = useState('')
   const [groupFilter, setGroupFilter] = useState('')
+  const [joinInput, setJoinInput] = useState<Record<string, string>>({})
+  const [joinError, setJoinError] = useState<Record<string, string>>({})
+  const [copiedId, setCopiedId] = useState<string | null>(null)
 
   const demoUrl = 'https://docs.google.com/spreadsheets/d/10GJlo_5HS7Z9z5xm-BM5uNzTyhZ01v5SwPpzu7vtqE4/edit?usp=sharing'
+
+  const ownerKey = (state.currentUser?.email || state.currentUser?.name || '').toLowerCase()
+
+  const isOwner = (p: typeof state.projects[0]) =>
+    !!p.ownerEmail && (p.ownerEmail || '').toLowerCase() === ownerKey
+
+  const isLocked = (p: typeof state.projects[0]) =>
+    !isOwner(p) && p.shared !== false && !!p.accessCode && !state.joinedProjects.includes(p.id)
+
+  const handleJoin = (p: typeof state.projects[0]) => {
+    const ok = joinProject(p.id, (joinInput[p.id] || '').trim())
+    if (ok) {
+      setJoinInput(prev => ({ ...prev, [p.id]: '' }))
+      setJoinError(prev => ({ ...prev, [p.id]: '' }))
+      switchProject(p.id)
+    } else {
+      setJoinError(prev => ({ ...prev, [p.id]: 'Incorrect access code' }))
+    }
+  }
+
+  const handleCopyCode = async (p: typeof state.projects[0]) => {
+    if (!p.accessCode) return
+    try {
+      await navigator.clipboard.writeText(p.accessCode)
+      setCopiedId(p.id)
+      setTimeout(() => setCopiedId(null), 1500)
+    } catch {}
+  }
 
   const handleCreate = async () => {
     if (!name.trim()) return
@@ -76,11 +107,18 @@ export function ProjectManager() {
               </select>
             </div>
             <div className="project-list">
-              {state.projects.filter(p => !groupFilter || p.group === groupFilter).map(p => (
+              {state.projects.filter(p => !groupFilter || p.group === groupFilter).map(p => {
+                const locked = isLocked(p)
+                const owner = isOwner(p)
+                const joined = state.joinedProjects.includes(p.id)
+                return (
                 <div
                   key={p.id}
-                  className={`project-card ${state.activeProjectId === p.id ? 'active' : ''}`}
-                  onClick={() => switchProject(p.id)}
+                  className={`project-card ${state.activeProjectId === p.id ? 'active' : ''} ${locked ? 'locked' : ''}`}
+                  onClick={() => {
+                    if (locked) return
+                    switchProject(p.id)
+                  }}
                 >
                   <div className="project-card-left">
                     {editingId === p.id ? (
@@ -96,6 +134,7 @@ export function ProjectManager() {
                     ) : (
                       <h3 className="project-name" onDoubleClick={(e) => {
                         e.stopPropagation()
+                        if (!owner && p.shared === false) return
                         setEditingId(p.id)
                         setEditName(p.name)
                       }}>
@@ -107,17 +146,58 @@ export function ProjectManager() {
                       {p.sheetUrl && <span>📋 Sheet linked</span>}
                       {p.docUrl && <span>📜 Doc linked</span>}
                       {p.group && <span className="project-group-tag" style={{ color: p.groupColor }}>{p.group}</span>}
-                      <span
-                        className={`project-share-tag ${p.shared === false ? 'local' : 'shared'}`}
-                        onClick={(e) => {
-                          e.stopPropagation()
-                          updateProject(p.id, { shared: p.shared === false })
-                        }}
-                        title={p.shared === false ? 'Private — only visible to you. Click to share with crew.' : 'Shared with crew — click to make private'}
-                      >
-                        {p.shared === false ? '🔒 Local' : '🌐 Shared'}
-                      </span>
+                      {owner ? (
+                        <span
+                          className={`project-share-tag ${p.shared === false ? 'local' : 'shared'}`}
+                          onClick={(e) => {
+                            e.stopPropagation()
+                            updateProject(p.id, { shared: p.shared === false })
+                          }}
+                          title={p.shared === false ? 'Private — only visible to you. Click to share with crew.' : 'Shared — click to make private'}
+                        >
+                          {p.shared === false ? '🔒 Local' : '🌐 Shared'}
+                        </span>
+                      ) : (
+                        <span className={`project-share-tag ${joined ? 'shared' : 'locked'}`}>
+                          {locked ? '🔒 Locked' : joined ? '🌐 Joined' : '🌐 Shared'}
+                        </span>
+                      )}
                     </div>
+                    {owner && p.shared !== false && p.accessCode && (
+                      <div className="project-access-code" onClick={e => e.stopPropagation()}>
+                        <span className="project-access-code-label">Access code</span>
+                        <span className="project-access-code-value">{p.accessCode}</span>
+                        <button className="btn-icon btn-icon-sm" onClick={() => handleCopyCode(p)} title="Copy access code">
+                          {copiedId === p.id ? '✅' : '📋'}
+                        </button>
+                        <button
+                          className="btn-icon btn-icon-sm"
+                          onClick={() => {
+                            if (confirm('Regenerate the access code? The old code will stop working.')) {
+                              regenerateAccessCode(p.id)
+                            }
+                          }}
+                          title="Regenerate access code"
+                        >
+                          🔄
+                        </button>
+                      </div>
+                    )}
+                    {locked && (
+                      <div className="project-join-box" onClick={e => e.stopPropagation()}>
+                        <input
+                          className="project-join-input"
+                          type="text"
+                          placeholder="Enter access code"
+                          value={joinInput[p.id] || ''}
+                          onChange={e => setJoinInput(prev => ({ ...prev, [p.id]: e.target.value.toUpperCase() }))}
+                          onKeyDown={e => e.key === 'Enter' && handleJoin(p)}
+                          maxLength={10}
+                        />
+                        <button className="btn btn-sm btn-primary" onClick={() => handleJoin(p)}>Join</button>
+                        {joinError[p.id] && <span className="project-join-error">{joinError[p.id]}</span>}
+                      </div>
+                    )}
                   </div>
                   <div className="project-card-right">
                     {progress(p) !== null && (
@@ -128,12 +208,27 @@ export function ProjectManager() {
                         <span className="project-progress-pct">{progress(p)}%</span>
                       </div>
                     )}
-                    <button className="btn-icon btn-icon-sm" onClick={(e) => handleDelete(p.id, e)} title="Delete project">
-                      🗑️
-                    </button>
+                    {owner && (
+                      <button className="btn-icon btn-icon-sm" onClick={(e) => handleDelete(p.id, e)} title="Delete project">
+                        🗑️
+                      </button>
+                    )}
+                    {!owner && joined && (
+                      <button
+                        className="btn-icon btn-icon-sm"
+                        onClick={(e) => {
+                          e.stopPropagation()
+                          if (confirm(`Leave "${p.name}"?`)) leaveProject(p.id)
+                        }}
+                        title="Leave project"
+                      >
+                        👋
+                      </button>
+                    )}
                   </div>
                 </div>
-              ))}
+                )
+              })}
             </div>
           </>
         )}
@@ -182,7 +277,7 @@ export function ProjectManager() {
               </div>
               <p className="setup-hint">
                 {shared
-                  ? 'Shared projects are visible to the whole crew from any device.'
+                  ? 'Shared projects get an access code you send to crew — they unlock and join from any device.'
                   : 'Private projects are only visible to you when logged in.'}
               </p>
 
@@ -214,7 +309,7 @@ export function ProjectManager() {
           <li>Each project stores its own sheet, doc, and relay URLs</li>
           <li>Switch between projects from the header dropdown</li>
           <li>Double-click a project name to rename it</li>
-          <li>Projects are saved in your browser's local storage</li>
+          <li>Shared projects are locked until you enter the creator's access code</li>
         </ul>
       </div>
     </div>

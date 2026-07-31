@@ -3974,6 +3974,59 @@ mark.script-hl {
 .project-share-tag:hover {
   opacity: 0.7;
 }
+.project-share-tag.locked {
+  color: var(--text-dim);
+  border-color: var(--border);
+  cursor: default;
+}
+.project-card.locked {
+  cursor: default;
+}
+.project-access-code {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-top: 8px;
+  flex-wrap: wrap;
+}
+.project-access-code-label {
+  font-size: 11px;
+  color: var(--text-dim);
+}
+.project-access-code-value {
+  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+  font-size: 15px;
+  font-weight: 700;
+  letter-spacing: 2px;
+  color: var(--accent);
+  background: var(--accent-dim);
+  padding: 2px 10px;
+  border-radius: 6px;
+}
+.project-join-box {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-top: 10px;
+  flex-wrap: wrap;
+}
+.project-join-input {
+  width: 180px;
+  padding: 6px 10px;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  background: var(--bg-input);
+  color: var(--text-primary);
+  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+  font-size: 14px;
+  letter-spacing: 2px;
+  text-transform: uppercase;
+}
+.project-join-error {
+  font-size: 12px;
+  color: #ef4444;
+  flex-basis: 100%;
+}
 .project-share-toggle {
   display: flex;
   gap: 6px;

@@ -9,6 +9,7 @@ export interface Project {
   createdAt: string
   shared?: boolean
   ownerEmail?: string
+  accessCode?: string
 }
 
 export interface CrewMember {
@@ -170,6 +171,7 @@ export interface AppState {
   theme: Theme
   view: ViewState
   projects: Project[]
+  joinedProjects: string[]
   activeProjectId: string | null
   sheetUrl: string
   shots: ShotRecord[]

@@ -61,10 +61,19 @@ const server = http.createServer((req, res) => {
       try {
         const existing = readData()
         const incoming = JSON.parse(body)
+        const mergeBy = (a, b, key) => {
+          const map = new Map()
+          for (const item of a || []) map.set(item[key], item)
+          for (const item of b || []) map.set(item[key], item)
+          return [...map.values()]
+        }
         const data = {
           ...existing,
           ...incoming,
-          projects: incoming.projects ?? existing.projects ?? [],
+          projects: mergeBy(existing.projects, incoming.projects, 'id'),
+          crewMembers: mergeBy(existing.crewMembers, incoming.crewMembers, 'name'),
+          savedUsers: mergeBy(existing.savedUsers, incoming.savedUsers, 'email'),
+          quickMessages: mergeBy(existing.quickMessages, incoming.quickMessages, 'id'),
           projectsData: {
             ...(existing.projectsData || {}),
             ...(incoming.projectsData || {}),
