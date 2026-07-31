@@ -385,8 +385,10 @@ function reducer(state: AppState, action: Action): AppState {
       localStorage.setItem('slatehub-session-email', action.user.email || '')
       return { ...state, currentUser: action.user }
     case 'LOGIN': {
-      const exists = state.savedUsers.find(u => u.email === action.user.email)
-      const saved = exists ? state.savedUsers : [...state.savedUsers, action.user]
+      const existingIdx = state.savedUsers.findIndex(u => u.email === action.user.email)
+      const saved = existingIdx >= 0
+        ? state.savedUsers.map((u, i) => i === existingIdx ? { ...u, ...action.user } : u)
+        : [...state.savedUsers, action.user]
       saveSavedUsers(saved)
       localStorage.setItem('slatehub-session-email', action.user.email || '')
       return { ...state, currentUser: action.user, savedUsers: saved }

@@ -1,6 +1,6 @@
 import { useState } from 'react'
 import { useApp } from '../context/AppContext'
-import { hashPassword } from '../utils/auth'
+import { hashPassword, sha256Hash } from '../utils/auth'
 
 export function LoginView() {
   const { state, login, registerUser } = useApp()
@@ -9,8 +9,9 @@ export function LoginView() {
   const [password, setPassword] = useState('')
   const [isRegister, setIsRegister] = useState(false)
   const [error, setError] = useState('')
+  const [busy, setBusy] = useState(false)
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
     setError('')
     if (!email.trim() || !password.trim()) {
@@ -21,6 +22,7 @@ export function LoginView() {
       setError('Name is required')
       return
     }
+    setBusy(true)
     try {
       const hashed = hashPassword(password.trim())
       if (isRegister) {
@@ -29,14 +31,28 @@ export function LoginView() {
           setError('An account with this email already exists')
           return
         }
-        registerUser({ name: name.trim(), role: '', email: email.trim(), password: hashed })
+        const legacy = state.savedUsers.find(u => u.name.toLowerCase() === name.trim().toLowerCase() && !u.email)
+        if (legacy) {
+          registerUser({ name: name.trim(), role: legacy.role || '', email: email.trim(), password: hashed })
+        } else {
+          registerUser({ name: name.trim(), role: '', email: email.trim(), password: hashed })
+        }
       } else {
         const user = state.savedUsers.find(u => u.email === email.trim())
         if (!user) {
           setError('No account found with this email')
           return
         }
+        if (!user.password) {
+          setError('This account has no password set. Use "Register" with this email to claim it.')
+          return
+        }
         if (user.password !== hashed) {
+          const legacyHash = await sha256Hash(password.trim())
+          if (user.password === legacyHash) {
+            login({ name: user.name, role: user.role || '', email: user.email, password: hashed })
+            return
+          }
           setError('Incorrect password')
           return
         }
@@ -44,6 +60,8 @@ export function LoginView() {
       }
     } catch {
       setError('Something went wrong. Try again.')
+    } finally {
+      setBusy(false)
     }
   }
 
