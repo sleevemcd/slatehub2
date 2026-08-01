@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef, useCallback, useMemo } from 'react'
 import { useApp } from '../context/AppContext'
-import { docUrlToTxtUrl, fetchDocText, fetchTeleprompterState, htmlToPlainText } from '../utils/sheet'
+import { docUrlToTxtUrl, fetchDocText, fetchTeleprompterState, getDeviceId, htmlToPlainText, sendTeleprompterState } from '../utils/sheet'
 
 function generateId(): string {
   return Date.now().toString(36) + '-' + Math.random().toString(36).substring(2, 8)
@@ -31,12 +31,17 @@ export function TeleprompterView() {
   const animRef = useRef<number>(0)
   const posRef = useRef(state.teleprompterState.scrollPosition)
   const pollingRef = useRef<ReturnType<typeof setInterval> | undefined>(undefined)
+  const relayTimerRef = useRef<ReturnType<typeof setTimeout> | undefined>(undefined)
+  const applyingRemoteRef = useRef(false)
   const playingRef = useRef(playing)
   const speedRef = useRef(speed)
+  const deviceId = useMemo(() => getDeviceId(), [])
 
   const isDragging = useRef(false)
   const dragStartY = useRef(0)
   const dragStartScroll = useRef(0)
+  const tapStartRef = useRef<{ x: number; y: number } | null>(null)
+  const tapMovedRef = useRef(false)
 
   useEffect(() => { playingRef.current = playing }, [playing])
   useEffect(() => { speedRef.current = speed }, [speed])
@@ -81,6 +86,16 @@ export function TeleprompterView() {
     return () => clearInterval(interval)
   }, [fetchDoc])
 
+  const sendRelay = useCallback((partial: { scrollPosition?: number; speed?: number; playing?: boolean }) => {
+    if (!teleprompter.relayUrl || !teleprompter.sessionId) return
+    sendTeleprompterState(teleprompter.relayUrl, teleprompter.sessionId, { ...partial, writer: deviceId })
+  }, [teleprompter.relayUrl, teleprompter.sessionId, deviceId])
+
+  const sendRelayDebounced = useCallback((partial: { scrollPosition?: number; speed?: number; playing?: boolean }) => {
+    if (relayTimerRef.current) clearTimeout(relayTimerRef.current)
+    relayTimerRef.current = setTimeout(() => sendRelay(partial), 120)
+  }, [sendRelay])
+
   const pollRemote = useCallback(async () => {
     if (!teleprompter.relayUrl || !teleprompter.sessionId) {
       setConnected(false)
@@ -90,7 +105,7 @@ export function TeleprompterView() {
     if (remoteState) {
       const fresh = remoteState.age !== undefined && remoteState.age !== null && remoteState.age < 4000
       setConnected(fresh)
-      if (fresh) {
+      if (fresh && remoteState.writer !== deviceId) {
         if (remoteState.playing !== undefined && remoteState.playing !== playingRef.current) {
           setPlaying(remoteState.playing)
         }
@@ -101,21 +116,24 @@ export function TeleprompterView() {
         if (remoteState.scrollPosition !== undefined && scrollRef.current) {
           const maxScroll = scrollRef.current.scrollHeight - scrollRef.current.clientHeight
           if (maxScroll > 0) {
+            applyingRemoteRef.current = true
             scrollRef.current.scrollTop = remoteState.scrollPosition * maxScroll
             posRef.current = remoteState.scrollPosition
+            setTimeout(() => { applyingRemoteRef.current = false }, 150)
           }
         }
       }
     } else {
       setConnected(false)
     }
-  }, [teleprompter.relayUrl, teleprompter.sessionId, dispatch])
+  }, [teleprompter.relayUrl, teleprompter.sessionId, deviceId, dispatch])
 
   useEffect(() => {
     if (!teleprompter.relayUrl) return
     pollingRef.current = setInterval(pollRemote, 500)
     return () => {
       if (pollingRef.current) clearInterval(pollingRef.current)
+      if (relayTimerRef.current) clearTimeout(relayTimerRef.current)
     }
   }, [pollRemote, teleprompter.relayUrl])
 
@@ -140,10 +158,20 @@ export function TeleprompterView() {
   const handleKeyDown = (e: React.KeyboardEvent) => {
     if (e.key === ' ' || e.key === 'Space') {
       e.preventDefault()
-      setPlaying(p => !p)
+      togglePlay()
     }
-    if (e.key === 'ArrowUp') setSpeed(s => Math.max(1, s - 1))
-    if (e.key === 'ArrowDown') setSpeed(s => Math.min(20, s + 1))
+    if (e.key === 'ArrowUp') {
+      const v = Math.max(1, speedRef.current - 1)
+      speedRef.current = v
+      setSpeed(v)
+      sendRelay({ speed: v, playing: playingRef.current, scrollPosition: posRef.current })
+    }
+    if (e.key === 'ArrowDown') {
+      const v = Math.min(20, speedRef.current + 1)
+      speedRef.current = v
+      setSpeed(v)
+      sendRelay({ speed: v, playing: playingRef.current, scrollPosition: posRef.current })
+    }
     if (e.key === 'Escape') {
       if (hideUI) setHideUI(false)
       else if (showSettings) setShowSettings(false)
@@ -151,41 +179,68 @@ export function TeleprompterView() {
     if (e.key === 'h' || e.key === 'H') setHideUI(h => !h)
   }
 
-  const handleMouseDown = (e: React.MouseEvent) => {
-    if (hideUI || playing) return
+  const togglePlay = useCallback(() => {
+    const np = !playingRef.current
+    playingRef.current = np
+    setPlaying(np)
+    sendRelay({ playing: np, speed: speedRef.current, scrollPosition: posRef.current })
+  }, [sendRelay])
+
+  const handlePointerStart = (x: number, y: number) => {
+    tapStartRef.current = { x, y }
+    tapMovedRef.current = false
+    if (playing) return
     isDragging.current = true
-    dragStartY.current = e.clientY
+    dragStartY.current = y
     dragStartScroll.current = scrollRef.current?.scrollTop ?? 0
+  }
+
+  const handlePointerMove = (x: number, y: number) => {
+    if (tapStartRef.current && !tapMovedRef.current) {
+      const dx = x - tapStartRef.current.x
+      const dy = y - tapStartRef.current.y
+      if (Math.abs(dx) + Math.abs(dy) > 6) tapMovedRef.current = true
+    }
+    if (!isDragging.current || !scrollRef.current) return
+    const dy = y - dragStartY.current
+    scrollRef.current.scrollTop = dragStartScroll.current - dy
+    handleScroll()
+  }
+
+  const handlePointerEnd = (e: { target: EventTarget | null }) => {
+    const wasTap = !tapMovedRef.current
+    isDragging.current = false
+    tapStartRef.current = null
+    if (wasTap) {
+      const t = e.target as HTMLElement | null
+      if (t && t.closest('button, input, select, textarea, a, .tp-controls, .tp-bottom-bar, .tp-sidebar-overlay')) return
+      togglePlay()
+    }
+  }
+
+  const handleMouseDown = (e: React.MouseEvent) => {
     e.preventDefault()
+    handlePointerStart(e.clientX, e.clientY)
   }
 
   const handleMouseMove = (e: React.MouseEvent) => {
-    if (!isDragging.current || !scrollRef.current) return
-    const dy = e.clientY - dragStartY.current
-    scrollRef.current.scrollTop = dragStartScroll.current - dy
-    handleScroll()
+    handlePointerMove(e.clientX, e.clientY)
   }
 
-  const handleMouseUp = () => {
-    isDragging.current = false
+  const handleMouseUp = (e: React.MouseEvent) => {
+    handlePointerEnd(e)
   }
 
   const handleTouchStart = (e: React.TouchEvent) => {
-    if (hideUI || playing) return
-    isDragging.current = true
-    dragStartY.current = e.touches[0].clientY
-    dragStartScroll.current = scrollRef.current?.scrollTop ?? 0
+    handlePointerStart(e.touches[0].clientX, e.touches[0].clientY)
   }
 
   const handleTouchMove = (e: React.TouchEvent) => {
-    if (!isDragging.current || !scrollRef.current) return
-    const dy = e.touches[0].clientY - dragStartY.current
-    scrollRef.current.scrollTop = dragStartScroll.current - dy
-    handleScroll()
+    handlePointerMove(e.touches[0].clientX, e.touches[0].clientY)
   }
 
-  const handleTouchEnd = () => {
-    isDragging.current = false
+  const handleTouchEnd = (e: React.TouchEvent) => {
+    handlePointerEnd(e)
   }
 
   const handleScroll = () => {
@@ -194,7 +249,12 @@ export function TeleprompterView() {
     const maxScroll = el.scrollHeight - el.clientHeight
     const pos = maxScroll > 0 ? el.scrollTop / maxScroll : 0
     posRef.current = pos
+    if (applyingRemoteRef.current) {
+      applyingRemoteRef.current = false
+      return
+    }
     dispatch({ type: 'SET_TELEPROMPTER_STATE', state: { scrollPosition: pos } })
+    sendRelayDebounced({ scrollPosition: pos, speed: speedRef.current, playing: playingRef.current })
   }
 
   const jumpTo = (pct: number) => {
@@ -216,8 +276,9 @@ export function TeleprompterView() {
   }
 
   const jumpToMarker = (pos: number) => {
-    jumpTo(pos)
     setPlaying(false)
+    playingRef.current = false
+    jumpTo(pos)
   }
 
   const goBack = () => {
@@ -259,10 +320,13 @@ export function TeleprompterView() {
       onTouchMove={handleTouchMove}
       onTouchEnd={handleTouchEnd}
     >
+      {hideUI && (
+        <button className="tp-exit-btn" onClick={() => setHideUI(false)} title="Show controls (Esc)">⋯</button>
+      )}
       <div className="tp-controls">
         <div className="tp-controls-left">
           <button className="btn-icon tp-btn" onClick={goBack} title="Back">←</button>
-          <button className={`btn-icon tp-btn ${playing ? 'active' : ''}`} onClick={() => setPlaying(p => !p)} title="Play (Space)">
+          <button className={`btn-icon tp-btn ${playing ? 'active' : ''}`} onClick={togglePlay} title="Play (Space)">
             {playing ? '⏸' : '▶'}
           </button>
           <button className={`btn-icon tp-btn ${mirror ? 'active' : ''}`} onClick={() => setMirror(m => !m)} title="Mirror flip">
@@ -276,7 +340,11 @@ export function TeleprompterView() {
         </div>
         <div className="tp-controls-center">
           <input type="range" min="1" max="20" value={speed}
-            onChange={e => setSpeed(Number(e.target.value))}
+            onChange={e => {
+              const v = Number(e.target.value)
+              setSpeed(v)
+              sendRelay({ speed: v, playing: playingRef.current, scrollPosition: posRef.current })
+            }}
             className="tp-speed-slider" title="Scroll speed" />
           <span className="tp-speed-label">{speed}</span>
         </div>
@@ -355,7 +423,11 @@ export function TeleprompterView() {
               <label className="tp-sidebar-field">
                 <span>Scroll Speed: {speed}</span>
                 <input type="range" min="1" max="20" value={speed}
-                  onChange={e => setSpeed(Number(e.target.value))} />
+                  onChange={e => {
+                    const v = Number(e.target.value)
+                    setSpeed(v)
+                    sendRelay({ speed: v, playing: playingRef.current, scrollPosition: posRef.current })
+                  }} />
               </label>
             </div>
           </div>

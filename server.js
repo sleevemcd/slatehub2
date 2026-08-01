@@ -102,6 +102,7 @@ const server = http.createServer((req, res) => {
             scrollPosition: parsed.scrollPosition ?? 0,
             speed: parsed.speed ?? 5,
             playing: parsed.playing ?? false,
+            writer: typeof parsed.writer === 'string' ? parsed.writer : null,
             updatedAt: Date.now(),
           })
         }

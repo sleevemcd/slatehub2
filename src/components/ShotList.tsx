@@ -6,7 +6,7 @@ import type { ShotRecord } from '../types'
 import { HIGHLIGHT_COLORS } from '../types'
 
 export function ShotList() {
-  const { state, dispatch, openSlate, toggleDone, setShotPriority, deleteShots, updateShot, reorderShots } = useApp()
+  const { state, dispatch, openSlate, selectShot, toggleDone, setShotPriority, deleteShots, updateShot, reorderShots } = useApp()
   const [selectMode, setSelectMode] = useState(false)
   const [selected, setSelected] = useState<Set<number>>(new Set())
   const [dragRow, setDragRow] = useState<number | null>(null)
@@ -141,12 +141,14 @@ export function ShotList() {
       shot={shot}
       takeCount={getTakeCount(shot.row)}
       showRef={state.showRef}
-      onSelect={openSlate}
+      onSelect={selectShot}
+      onOpenSlate={openSlate}
       onToggleDone={() => toggleDone(shot.row)}
       onSetPriority={setShotPriority}
       onEditShot={updateShot}
       layout={state.layout}
       selected={selected.has(shot.row)}
+      isActive={state.activeShot?.row === shot.row}
       onToggleSelect={toggleSelect}
       selectMode={selectMode}
       onDragStart={handleDragStart}
@@ -162,6 +164,12 @@ export function ShotList() {
         <span>Showing {filtered.length} of {state.shots.length} shots
         {state.filters.search && ` (matching "${state.filters.search}")`}</span>
         <div className="shot-list-actions">
+          <button className="btn btn-sm btn-slate"
+            disabled={!state.activeShot}
+            onClick={() => state.activeShot && openSlate(state.activeShot)}
+            title={state.activeShot ? `Open #${state.activeShot.shootOrder || state.activeShot.row} in the slate` : 'Select a shot first'}>
+            🎬 Open Slate{state.activeShot ? ` · #${state.activeShot.shootOrder || state.activeShot.row}` : ''}
+          </button>
           <button className={`btn btn-sm btn-ghost ${selectMode ? 'active' : ''}`}
             onClick={() => { setSelectMode(!selectMode); clearSelection() }}>
             {selectMode ? 'Done' : 'Select'}

@@ -1,6 +1,6 @@
-import { useState, useEffect, useRef, useCallback } from 'react'
+import { useState, useEffect, useRef, useCallback, useMemo } from 'react'
 import { useApp } from '../context/AppContext'
-import { sendTeleprompterState } from '../utils/sheet'
+import { fetchTeleprompterState, getDeviceId, sendTeleprompterState } from '../utils/sheet'
 
 export function TeleprompterRemote() {
   const { state, dispatch } = useApp()
@@ -11,13 +11,16 @@ export function TeleprompterRemote() {
   const [sending, setSending] = useState(false)
   const [status, setStatus] = useState<'idle' | 'sent' | 'error'>('idle')
   const sendTimer = useRef<ReturnType<typeof setTimeout> | undefined>(undefined)
+  const pollingRef = useRef<ReturnType<typeof setInterval> | undefined>(undefined)
   const scrollAreaRef = useRef<HTMLDivElement>(null)
   const isDragging = useRef(false)
+  const applyingRemoteRef = useRef(false)
   const dragStartY = useRef(0)
   const dragStartScroll = useRef(0)
   const playingRef = useRef(playing)
   const speedRef = useRef(speed)
   const scrollPosRef = useRef(scrollPos)
+  const deviceId = useMemo(() => getDeviceId(), [])
 
   useEffect(() => { playingRef.current = playing }, [playing])
   useEffect(() => { speedRef.current = speed }, [speed])
@@ -38,6 +41,37 @@ export function TeleprompterRemote() {
     sendTimer.current = setTimeout(() => sendState(partial), 100)
   }, [sendState])
 
+  const pollRemote = useCallback(async () => {
+    if (!teleprompter.relayUrl || !teleprompter.sessionId) return
+    const remoteState = await fetchTeleprompterState(teleprompter.relayUrl, teleprompter.sessionId)
+    if (!remoteState) return
+    const fresh = remoteState.age !== undefined && remoteState.age !== null && remoteState.age < 4000
+    if (!fresh || remoteState.writer === deviceId) return
+    if (remoteState.playing !== undefined && remoteState.playing !== playingRef.current) {
+      setPlaying(remoteState.playing)
+    }
+    if (remoteState.speed !== undefined && remoteState.speed !== speedRef.current) {
+      setSpeed(remoteState.speed)
+    }
+    if (remoteState.scrollPosition !== undefined && scrollAreaRef.current) {
+      const maxScroll = scrollAreaRef.current.scrollHeight - scrollAreaRef.current.clientHeight
+      if (maxScroll > 0) {
+        applyingRemoteRef.current = true
+        scrollAreaRef.current.scrollTop = remoteState.scrollPosition * maxScroll
+        setScrollPos(remoteState.scrollPosition)
+        setTimeout(() => { applyingRemoteRef.current = false }, 150)
+      }
+    }
+  }, [teleprompter.relayUrl, teleprompter.sessionId, deviceId])
+
+  useEffect(() => {
+    if (!teleprompter.relayUrl) return
+    pollingRef.current = setInterval(pollRemote, 500)
+    return () => {
+      if (pollingRef.current) clearInterval(pollingRef.current)
+    }
+  }, [pollRemote, teleprompter.relayUrl])
+
   useEffect(() => {
     return () => {
       if (sendTimer.current) clearTimeout(sendTimer.current)
@@ -50,6 +84,10 @@ export function TeleprompterRemote() {
     const maxScroll = el.scrollHeight - el.clientHeight
     const pos = maxScroll > 0 ? el.scrollTop / maxScroll : 0
     setScrollPos(pos)
+    if (applyingRemoteRef.current) {
+      applyingRemoteRef.current = false
+      return
+    }
     debouncedSend({ scrollPosition: pos, playing: playingRef.current, speed: speedRef.current })
   }, [debouncedSend])
 

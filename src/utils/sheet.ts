@@ -37,7 +37,21 @@ export function htmlToPlainText(html: string): string {
   return blocks.length > 0 ? blocks.join('\n\n') : (div.textContent || '')
 }
 
-export async function fetchTeleprompterState(relayUrl: string, sessionId: string): Promise<{ scrollPosition: number; speed: number; playing: boolean; age?: number | null } | null> {
+export function getDeviceId(): string {
+  const KEY = 'slatehub-device-id'
+  try {
+    let id = localStorage.getItem(KEY)
+    if (!id) {
+      id = 'dev-' + Math.random().toString(36).substring(2, 10)
+      localStorage.setItem(KEY, id)
+    }
+    return id
+  } catch {
+    return 'dev-' + Math.random().toString(36).substring(2, 10)
+  }
+}
+
+export async function fetchTeleprompterState(relayUrl: string, sessionId: string): Promise<{ scrollPosition: number; speed: number; playing: boolean; age?: number | null; writer?: string | null } | null> {
   try {
     const url = `${relayUrl}?action=getTeleprompterState&sessionId=${encodeURIComponent(sessionId)}`
     const res = await fetch(url)
@@ -49,6 +63,7 @@ export async function fetchTeleprompterState(relayUrl: string, sessionId: string
         speed: data.result.speed ?? 5,
         playing: data.result.playing ?? false,
         age: data.result.age,
+        writer: data.result.writer,
       }
     }
     return null
@@ -60,7 +75,7 @@ export async function fetchTeleprompterState(relayUrl: string, sessionId: string
 export async function sendTeleprompterState(
   relayUrl: string,
   sessionId: string,
-  state: { scrollPosition?: number; speed?: number; playing?: boolean }
+  state: { scrollPosition?: number; speed?: number; playing?: boolean; writer?: string }
 ): Promise<boolean> {
   try {
     const res = await fetch(relayUrl, {
@@ -69,6 +84,7 @@ export async function sendTeleprompterState(
       body: JSON.stringify({
         action: 'updateTeleprompterState',
         sessionId,
+        writer: getDeviceId(),
         ...state,
       }),
     })

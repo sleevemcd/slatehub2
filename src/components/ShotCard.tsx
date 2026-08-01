@@ -8,11 +8,13 @@ interface ShotCardProps {
   takeCount: number
   showRef: boolean
   onSelect: (shot: ShotRecord) => void
+  onOpenSlate?: (shot: ShotRecord) => void
   onToggleDone: () => void
   onSetPriority?: (row: number, priority: string) => void
   onEditShot?: (row: number, data: Partial<ShotRecord>) => void
   layout: Layout
   selected?: boolean
+  isActive?: boolean
   onToggleSelect?: (row: number) => void
   selectMode?: boolean
   onDragStart?: (e: React.DragEvent, row: number) => void
@@ -29,7 +31,7 @@ function CrewBadges({ crew }: { crew: string[] }) {
   )
 }
 
-export function ShotCard({ shot, takeCount, showRef, onSelect, onToggleDone, onSetPriority, onEditShot, layout, selected, onToggleSelect, selectMode, onDragStart, onDragOver, onDrop }: ShotCardProps) {
+export function ShotCard({ shot, takeCount, showRef, onSelect, onOpenSlate, onToggleDone, onSetPriority, onEditShot, layout, selected, isActive, onToggleSelect, selectMode, onDragStart, onDragOver, onDrop }: ShotCardProps) {
   const [editing, setEditing] = useState(false)
   const [editForm, setEditForm] = useState<Partial<ShotRecord>>({})
 
@@ -119,6 +121,7 @@ export function ShotCard({ shot, takeCount, showRef, onSelect, onToggleDone, onS
     layout === 'list' ? 'shot-card shot-card-list' : 'shot-card',
     shot.done ? 'done' : '',
     selected ? 'selected' : '',
+    isActive ? 'active-shot' : '',
     selectMode ? 'select-mode' : '',
     editing ? 'editing' : '',
   ].filter(Boolean).join(' ')
@@ -232,7 +235,19 @@ export function ShotCard({ shot, takeCount, showRef, onSelect, onToggleDone, onS
         title="Drag to reorder">
         ⋮⋮
       </div>
-      <div className="shot-edit-btn" onClick={startEditing} title="Edit fields">✎</div>
+      <div className="shot-card-actions">
+        {onOpenSlate && (
+          <button
+            className="shot-slate-btn"
+            onClick={e => { e.stopPropagation(); onOpenSlate?.(shot) }}
+            title="Open this shot in the slate"
+          >
+            🎬
+          </button>
+        )}
+        <button className="shot-edit-btn" onClick={startEditing} title="Edit shot fields">✎ Edit</button>
+      </div>
+      {isActive && <div className="shot-active-badge" title="Selected for slate">🎬 Selected</div>}
       {layout === 'list' ? (
         <>
           <div className="shot-order">{'#' + shotNum}</div>

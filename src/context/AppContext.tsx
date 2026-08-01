@@ -354,9 +354,17 @@ function reducer(state: AppState, action: Action): AppState {
     case 'ADD_SHOT':
       return { ...state, shots: [...state.shots, action.shot] }
     case 'DELETE_SHOT':
-      return { ...state, shots: state.shots.filter(s => s.row !== action.row) }
+      return {
+        ...state,
+        shots: state.shots.filter(s => s.row !== action.row),
+        activeShot: state.activeShot?.row === action.row ? null : state.activeShot,
+      }
     case 'DELETE_SHOTS':
-      return { ...state, shots: state.shots.filter(s => !action.rows.includes(s.row)) }
+      return {
+        ...state,
+        shots: state.shots.filter(s => !action.rows.includes(s.row)),
+        activeShot: state.activeShot && action.rows.includes(state.activeShot.row) ? null : state.activeShot,
+      }
     case 'UPDATE_SHOT':
       return {
         ...state,
@@ -589,11 +597,12 @@ interface AppContextType {
   dispatch: React.Dispatch<Action>
   loadShots: (url: string) => Promise<void>
   openSlate: (shot: ShotRecord) => void
+  selectShot: (shot: ShotRecord) => void
   closeSlate: () => void
   goToView: (view: ViewState) => void
   goToNextShot: () => void
   goToPrevShot: () => void
-  recordTake: (good: boolean) => void
+  recordTake: (good: boolean, timecode?: string) => void
   updateTake: (id: string, data: Partial<Take>) => void
   toggleDone: (row: number) => void
   setShotPriority: (row: number, priority: string) => void
@@ -800,7 +809,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
     dispatch({ type: 'SET_VIEW', view: 'shots' })
   }, [])
 
-  const recordTake = useCallback((good: boolean) => {
+  const recordTake = useCallback((good: boolean, timecode?: string) => {
     if (!state.activeShot) return
     const take: Take = {
       id: `${state.activeShot.row}-${state.activeTake}-${Date.now()}`,
@@ -811,11 +820,16 @@ export function AppProvider({ children }: { children: ReactNode }) {
       notes: '',
       timestamp: new Date().toISOString(),
       user: state.currentUser.name || 'Anonymous',
-      timecode: state.timecode,
+      timecode: timecode || state.timecode,
     }
     dispatch({ type: 'ADD_TAKE', take })
     dispatch({ type: 'SET_ACTIVE_TAKE', take: state.activeTake + 1 })
   }, [state.activeShot, state.activeTake, state.currentUser.name, state.timecode])
+
+  const selectShot = useCallback((shot: ShotRecord) => {
+    dispatch({ type: 'SET_ACTIVE_SHOT', shot })
+    dispatch({ type: 'SET_ACTIVE_TAKE', take: 1 })
+  }, [])
 
   const toggleDone = useCallback((row: number) => {
     dispatch({ type: 'TOGGLE_SHOT_DONE', row })
@@ -1165,7 +1179,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
 
   return (
     <AppContext.Provider value={{
-      state, dispatch, loadShots, openSlate, closeSlate, goToView, goToNextShot, goToPrevShot,
+      state, dispatch, loadShots, openSlate, selectShot, closeSlate, goToView, goToNextShot, goToPrevShot,
       recordTake, updateTake, toggleDone, setShotPriority, deleteShot, deleteShots, updateShot, reorderShots,
       toggleTheme, createProject, switchProject, deleteProject, updateProject, joinProject, leaveProject, regenerateAccessCode,
       activeProject,
